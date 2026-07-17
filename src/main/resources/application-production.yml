@@ -1,0 +1,14 @@
+spring:
+  config:
+    activate:
+      on-profile: production
+  datasource:
+    url: ${BUSINESS_DB_URL}
+    username: ${BUSINESS_DB_USERNAME}
+    password: ${BUSINESS_DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: ${BUSINESS_JPA_DDL_AUTO:validate}
+    show-sql: false

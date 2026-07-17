@@ -1,0 +1,14 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/vyntra_business?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: vyntra_local
+    password: ""
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    show-sql: false

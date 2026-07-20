@@ -3,6 +3,6 @@ server:
 
 spring:
   application:
-    name: X-Business-Service
+    name: x-business-service
   profiles:
     default: local

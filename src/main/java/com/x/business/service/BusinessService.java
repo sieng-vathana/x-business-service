@@ -1,9 +1,9 @@
-package com.VyntraBusinessService.service;
+package com.x.business.service;
 
-import com.VyntraBusinessService.dto.BusinessResponse;
-import com.VyntraBusinessService.dto.CreateBusinessRequest;
-import com.VyntraBusinessService.entity.Business;
-import com.VyntraBusinessService.repository.BusinessRepository;
+import com.x.business.dto.BusinessResponse;
+import com.x.business.dto.CreateBusinessRequest;
+import com.x.business.entity.Business;
+import com.x.business.repository.BusinessRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;

@@ -1,8 +1,8 @@
-package com.VyntraBusinessService.controller;
+package com.x.business.controller;
 
-import com.VyntraBusinessService.dto.BusinessResponse;
-import com.VyntraBusinessService.dto.CreateBusinessRequest;
-import com.VyntraBusinessService.service.BusinessService;
+import com.x.business.dto.BusinessResponse;
+import com.x.business.dto.CreateBusinessRequest;
+import com.x.business.service.BusinessService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;

@@ -1,13 +1,13 @@
-package com.VyntraBusinessService;
+package com.x.business;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class VyntraBusinessServiceApplication {
+public class XBusinessServiceApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(VyntraBusinessServiceApplication.class, args);
+		SpringApplication.run(XBusinessServiceApplication.class, args);
 	}
 
 }

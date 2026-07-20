@@ -1,8 +1,8 @@
-package com.VyntraBusinessService.service;
+package com.x.business.service;
 
-import com.VyntraBusinessService.dto.CreateBusinessRequest;
-import com.VyntraBusinessService.entity.Business;
-import com.VyntraBusinessService.repository.BusinessRepository;
+import com.x.business.dto.CreateBusinessRequest;
+import com.x.business.entity.Business;
+import com.x.business.repository.BusinessRepository;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

@@ -1,6 +1,6 @@
-package com.VyntraBusinessService.repository;
+package com.x.business.repository;
 
-import com.VyntraBusinessService.entity.Business;
+import com.x.business.entity.Business;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

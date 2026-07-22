@@ -2,13 +2,18 @@ spring:
   config:
     activate:
       on-profile: production
+    import: optional:file:../config/secrets.yml
   datasource:
-    url: ${BUSINESS_DB_URL}
-    username: ${BUSINESS_DB_USERNAME}
-    password: ${BUSINESS_DB_PASSWORD}
+    url: jdbc:mysql://${db.host}:${db.port}/${db.prod.name}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${db.prod.username}
+    password: ${db.prod.password}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 5000
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: ${BUSINESS_JPA_DDL_AUTO:validate}
+      ddl-auto: update
     show-sql: false

@@ -2,11 +2,16 @@ spring:
   config:
     activate:
       on-profile: local
+    import: optional:file:../config/secrets.yml
   datasource:
-    url: jdbc:mysql://127.0.0.1:3307/vyntra_business?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-    username: vyntra_local
-    password: vyntra
+    url: jdbc:mysql://${db.host}:${db.port}/${db.dev.name}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${db.dev.username}
+    password: ${db.dev.password}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 5000
   jpa:
     open-in-view: false
     hibernate:

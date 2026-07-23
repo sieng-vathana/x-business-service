@@ -19,6 +19,11 @@ jobs:
           server-id: github-x-sharedlib
           server-username: GITHUB_ACTOR
           server-password: GITHUB_TOKEN
+      - uses: actions/checkout@v4
+        with:
+          repository: VathanaProgrammer/x-sharedlib
+          path: x-sharedlib
+      - run: mvn --batch-mode --no-transfer-progress -DskipTests install -f x-sharedlib/pom.xml
       - run: mvn --batch-mode --no-transfer-progress -DskipTests package
       - uses: docker/login-action@v3
         with:

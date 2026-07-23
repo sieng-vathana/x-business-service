@@ -12,6 +12,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Currency;
+import java.time.ZoneId;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +34,13 @@ public class BusinessService {
                 .ownerUserId(request.ownerUserId())
                 .name(request.name().trim())
                 .code(code)
+                .defaultCurrencyCode(normalizeCurrencyCode(request.defaultCurrencyCode()))
+                .taxRegistrationNumber(trimToNull(request.taxRegistrationNumber()))
+                .taxRegistrationLabel(trimToNull(request.taxRegistrationLabel()))
+                .defaultTaxId(request.defaultTaxId())
+                .pricesIncludeTax(request.pricesIncludeTax() == null || request.pricesIncludeTax())
+                .timeZone(normalizeTimeZone(request.timeZone()))
+                .fiscalYearStartMonth(request.fiscalYearStartMonth())
                 .status(ACTIVE_STATUS)
                 .build();
         return toResponse(businessRepository.save(business));
@@ -55,12 +64,45 @@ public class BusinessService {
         return code.trim().toUpperCase(Locale.ROOT);
     }
 
+    private String normalizeCurrencyCode(String currencyCode) {
+        String normalized = currencyCode.trim().toUpperCase(Locale.ROOT);
+        try {
+            Currency.getInstance(normalized);
+            return normalized;
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Default currency code must be a valid ISO 4217 code");
+        }
+    }
+
+    private String normalizeTimeZone(String timeZone) {
+        String normalized = timeZone.trim();
+        try {
+            return ZoneId.of(normalized).getId();
+        } catch (RuntimeException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Time zone must be a valid IANA time-zone ID");
+        }
+    }
+
+    private String trimToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
     private BusinessResponse toResponse(Business business) {
         return new BusinessResponse(
                 business.getId(),
                 business.getOwnerUserId(),
                 business.getName(),
                 business.getCode(),
+                business.getDefaultCurrencyCode(),
+                business.getTaxRegistrationNumber(),
+                business.getTaxRegistrationLabel(),
+                business.getDefaultTaxId(),
+                business.getPricesIncludeTax(),
+                business.getTimeZone(),
+                business.getFiscalYearStartMonth(),
                 business.getStatus(),
                 business.getCreatedAt(),
                 business.getUpdatedAt());

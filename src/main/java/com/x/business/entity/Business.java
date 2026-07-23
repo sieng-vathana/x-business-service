@@ -41,6 +41,29 @@ public class Business {
     @Column(nullable = false, length = 64)
     private String code;
 
+    @Column(name = "default_currency_code", nullable = false, length = 3)
+    private String defaultCurrencyCode;
+
+    @Column(name = "tax_registration_number", length = 100)
+    private String taxRegistrationNumber;
+
+    @Column(name = "tax_registration_label", length = 32)
+    private String taxRegistrationLabel;
+
+    /** Tax ID owned by the product/tax service; no cross-service JPA relation. */
+    @Column(name = "default_tax_id")
+    private Long defaultTaxId;
+
+    @Column(name = "prices_include_tax", nullable = false)
+    @Builder.Default
+    private Boolean pricesIncludeTax = true;
+
+    @Column(name = "time_zone", nullable = false, length = 64)
+    private String timeZone;
+
+    @Column(name = "fiscal_year_start_month", nullable = false)
+    private Integer fiscalYearStartMonth;
+
     @Column(nullable = false)
     private Integer status;
 

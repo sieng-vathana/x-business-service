@@ -8,5 +8,5 @@ import java.util.List;
 public interface BusinessRepository extends JpaRepository<Business, Long> {
     boolean existsByCode(String code);
 
-    List<Business> findAllByOwnerUserIdOrderByCreatedAtDesc(Long ownerUserId);
+    List<Business> findAllByUserIdOrderByCreatedAtDesc(Long userId);
 }

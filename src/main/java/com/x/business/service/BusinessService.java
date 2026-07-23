@@ -31,13 +31,13 @@ public class BusinessService {
         }
 
         Business business = Business.builder()
-                .ownerUserId(request.ownerUserId())
+                .userId(request.ownerUserId())
                 .name(request.name().trim())
                 .code(code)
                 .defaultCurrencyCode(normalizeCurrencyCode(request.defaultCurrencyCode()))
                 .taxRegistrationNumber(trimToNull(request.taxRegistrationNumber()))
                 .taxRegistrationLabel(trimToNull(request.taxRegistrationLabel()))
-                .defaultTaxId(request.defaultTaxId())
+                .taxId(request.defaultTaxId())
                 .pricesIncludeTax(request.pricesIncludeTax() == null || request.pricesIncludeTax())
                 .timeZone(normalizeTimeZone(request.timeZone()))
                 .fiscalYearStartMonth(request.fiscalYearStartMonth())
@@ -55,7 +55,7 @@ public class BusinessService {
 
     @Transactional(readOnly = true)
     public List<BusinessResponse> getByOwner(Long ownerUserId) {
-        return businessRepository.findAllByOwnerUserIdOrderByCreatedAtDesc(ownerUserId).stream()
+        return businessRepository.findAllByUserIdOrderByCreatedAtDesc(ownerUserId).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -93,13 +93,13 @@ public class BusinessService {
     private BusinessResponse toResponse(Business business) {
         return new BusinessResponse(
                 business.getId(),
-                business.getOwnerUserId(),
+                business.getUserId(),
                 business.getName(),
                 business.getCode(),
                 business.getDefaultCurrencyCode(),
                 business.getTaxRegistrationNumber(),
                 business.getTaxRegistrationLabel(),
-                business.getDefaultTaxId(),
+                business.getTaxId(),
                 business.getPricesIncludeTax(),
                 business.getTimeZone(),
                 business.getFiscalYearStartMonth(),

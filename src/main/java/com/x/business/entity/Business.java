@@ -32,8 +32,8 @@ public class Business {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "owner_user_id", nullable = false)
-    private Long ownerUserId;
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
 
     @Column(nullable = false, length = 160)
     private String name;
@@ -51,8 +51,8 @@ public class Business {
     private String taxRegistrationLabel;
 
     /** Tax ID owned by the product/tax service; no cross-service JPA relation. */
-    @Column(name = "default_tax_id")
-    private Long defaultTaxId;
+    @Column(name = "tax_id")
+    private Long taxId;
 
     @Column(name = "prices_include_tax", nullable = false)
     @Builder.Default

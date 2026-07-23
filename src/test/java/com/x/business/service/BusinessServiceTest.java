@@ -23,9 +23,12 @@ class BusinessServiceTest {
         });
         BusinessService service = new BusinessService(repository);
 
-        var response = service.create(new CreateBusinessRequest(7L, "Acme Trading", " acme "));
+        var response = service.create(new CreateBusinessRequest(
+                7L, "Acme Trading", " acme ", "khr", "VAT-001", "VAT", null,
+                true, "Asia/Phnom_Penh", 1));
 
         assertEquals(7L, response.ownerUserId());
         assertEquals("ACME", response.code());
+        assertEquals("KHR", response.defaultCurrencyCode());
     }
 }

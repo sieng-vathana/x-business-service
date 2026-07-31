@@ -2,6 +2,7 @@ package com.x.business.service;
 
 import com.x.business.dto.BusinessResponse;
 import com.x.business.dto.CreateBusinessRequest;
+import com.x.business.dto.UpdateBusinessRequest;
 import com.x.business.entity.Business;
 import com.x.business.repository.BusinessRepository;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +44,14 @@ public class BusinessService {
                 .fiscalYearStartMonth(request.fiscalYearStartMonth())
                 .status(ACTIVE_STATUS)
                 .build();
+        return toResponse(businessRepository.save(business));
+    }
+
+    @Transactional
+    public BusinessResponse update(Long id, UpdateBusinessRequest request) {
+        Business business = businessRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));
+        business.setName(request.name().trim());
         return toResponse(businessRepository.save(business));
     }
 

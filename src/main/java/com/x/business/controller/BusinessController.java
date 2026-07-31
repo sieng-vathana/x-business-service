@@ -2,6 +2,7 @@ package com.x.business.controller;
 
 import com.x.business.dto.BusinessResponse;
 import com.x.business.dto.CreateBusinessRequest;
+import com.x.business.dto.UpdateBusinessRequest;
 import com.x.business.service.BusinessService;
 import com.sharedlib.response.ApiResponse;
 import jakarta.validation.Valid;
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -30,6 +32,13 @@ public class BusinessController {
     public ResponseEntity<ApiResponse<BusinessResponse>> create(@Valid @RequestBody CreateBusinessRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(HttpStatus.CREATED.value(), "Business created", businessService.create(request)));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<BusinessResponse>> update(
+            @PathVariable @Positive Long id,
+            @Valid @RequestBody UpdateBusinessRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Business updated", businessService.update(id, request)));
     }
 
     @GetMapping("/{id}")

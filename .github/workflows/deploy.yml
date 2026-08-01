@@ -2,12 +2,14 @@ name: Build and deploy x-business-service
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '.github/workflows/**'
   workflow_dispatch:
 permissions:
   contents: read
   packages: write
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +23,7 @@ jobs:
           server-password: GITHUB_TOKEN
       - uses: actions/checkout@v4
         with:
-          repository: VathanaProgrammer/x-sharedlib
+          repository: sieng-vathana/x-sharedlib
           path: x-sharedlib
       - run: mvn --batch-mode --no-transfer-progress -DskipTests install -f x-sharedlib/pom.xml
       - run: mvn --batch-mode --no-transfer-progress -DskipTests package
@@ -34,14 +36,17 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/vathanaprogrammer/x-business-service:main
-      - uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.K3S_DEPLOY_HOST }}
-          username: ${{ secrets.K3S_DEPLOY_USER }}
-          key: ${{ secrets.K3S_SSH_KEY }}
-          script: |
-            sudo k3s kubectl -n x-platform create deployment x-business-service --image=ghcr.io/vathanaprogrammer/x-business-service:main --dry-run=client -o yaml | sudo k3s kubectl apply -f -
-            sudo k3s kubectl -n x-platform expose deployment x-business-service --port=8080 --target-port=8080 --dry-run=client -o yaml | sudo k3s kubectl apply -f -
-            sudo k3s kubectl -n x-platform set env deployment/x-business-service SERVER_PORT=8080 SPRING_PROFILES_ACTIVE=production SPRING_DATASOURCE_URL=jdbc:mysql://mysql.x-platform.svc.cluster.local:3306/x_prod SPRING_JPA_HIBERNATE_DDL_AUTO=update --from=secret/x-app-database
-            sudo k3s kubectl -n x-platform rollout status deployment/x-business-service --timeout=180s
+          tags: |
+            ghcr.io/sieng-vathana/x-business-service:main
+            ghcr.io/sieng-vathana/x-business-service:${{ github.sha }}
+
+  deploy:
+    needs: build
+    runs-on: [self-hosted, linux, x64, x-platform-deploy]
+    steps:
+      - name: Roll out image
+        run: |
+          sudo k3s kubectl -n x-platform create deployment x-business-service --image=ghcr.io/sieng-vathana/x-business-service:${{ github.sha }} --dry-run=client -o yaml | sudo k3s kubectl apply -f -
+          sudo k3s kubectl -n x-platform expose deployment x-business-service --port=8080 --target-port=8080 --dry-run=client -o yaml | sudo k3s kubectl apply -f -
+          sudo k3s kubectl -n x-platform set env deployment/x-business-service SERVER_PORT=8080 SPRING_PROFILES_ACTIVE=production SPRING_DATASOURCE_URL=jdbc:mysql://mysql.x-platform.svc.cluster.local:3306/x_prod SPRING_JPA_HIBERNATE_DDL_AUTO=update --from=secret/x-app-database
+          sudo k3s kubectl -n x-platform rollout status deployment/x-business-service --timeout=180s

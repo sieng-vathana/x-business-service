@@ -9,6 +9,10 @@ spring:
     name: x-business-service
   profiles:
     default: local
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
 x:
   http:
@@ -18,3 +22,10 @@ x:
       hop: "x-api-gateway → x-bff → x-business-service"
       hops:
         /api/v1/businesses: "x-api-gateway → x-bff → x-business-service"
+  redis:
+    enabled: ${X_REDIS_ENABLED:true}
+    key-prefix: x
+    default-ttl: 10m
+    caches:
+      business-by-id: 15m
+      businesses-by-owner: 30m

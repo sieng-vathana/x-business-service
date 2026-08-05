@@ -3,7 +3,11 @@ package com.x.business.service;
 import com.x.business.dto.CreateBusinessRequest;
 import com.x.business.entity.Business;
 import com.x.business.repository.BusinessRepository;
+import com.x.redis.cache.CacheNames;
 import org.junit.jupiter.api.Test;
+import org.springframework.cache.annotation.Cacheable;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -11,6 +15,16 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class BusinessServiceTest {
+
+    @Test
+    void cachesBusinessesByOwnerUsingTheOwnerId() throws NoSuchMethodException {
+        Cacheable cacheable = BusinessService.class
+                .getMethod("getByOwner", Long.class)
+                .getAnnotation(Cacheable.class);
+
+        assertEquals(List.of(CacheNames.BUSINESSES_BY_OWNER), List.of(cacheable.cacheNames()));
+        assertEquals("#ownerUserId", cacheable.key());
+    }
 
     @Test
     void createNormalizesCodeAndKeepsOwnerReference() {

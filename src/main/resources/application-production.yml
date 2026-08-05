@@ -17,3 +17,7 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: false
+
+x:
+  redis:
+    enabled: ${X_REDIS_ENABLED:true}

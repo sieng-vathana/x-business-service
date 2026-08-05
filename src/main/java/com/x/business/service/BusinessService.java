@@ -5,7 +5,11 @@ import com.x.business.dto.CreateBusinessRequest;
 import com.x.business.dto.UpdateBusinessRequest;
 import com.x.business.entity.Business;
 import com.x.business.repository.BusinessRepository;
+import com.x.redis.cache.CacheNames;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +28,7 @@ public class BusinessService {
 
     private final BusinessRepository businessRepository;
 
+    @CacheEvict(cacheNames = CacheNames.BUSINESSES_BY_OWNER, key = "#request.ownerUserId()")
     @Transactional
     public BusinessResponse create(CreateBusinessRequest request) {
         String code = normalizeCode(request.code());
@@ -47,6 +52,10 @@ public class BusinessService {
         return toResponse(businessRepository.save(business));
     }
 
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.BUSINESS_BY_ID, key = "#id"),
+            @CacheEvict(cacheNames = CacheNames.BUSINESSES_BY_OWNER, allEntries = true)
+    })
     @Transactional
     public BusinessResponse update(Long id, UpdateBusinessRequest request) {
         Business business = businessRepository.findById(id)
@@ -55,6 +64,7 @@ public class BusinessService {
         return toResponse(businessRepository.save(business));
     }
 
+    @Cacheable(cacheNames = CacheNames.BUSINESS_BY_ID, key = "#id")
     @Transactional(readOnly = true)
     public BusinessResponse getById(Long id) {
         return businessRepository.findById(id)
@@ -62,6 +72,7 @@ public class BusinessService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));
     }
 
+    @Cacheable(cacheNames = CacheNames.BUSINESSES_BY_OWNER, key = "#ownerUserId")
     @Transactional(readOnly = true)
     public List<BusinessResponse> getByOwner(Long ownerUserId) {
         return businessRepository.findAllByUserIdOrderByCreatedAtDesc(ownerUserId).stream()

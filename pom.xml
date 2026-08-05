@@ -38,12 +38,24 @@
 				<enabled>true</enabled>
 			</snapshots>
 		</repository>
+		<repository>
+			<id>github-x-redis</id>
+			<url>https://maven.pkg.github.com/sieng-vathana/x-redis</url>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
 	</repositories>
 
 	<dependencies>
 		<dependency>
 			<groupId>com.x</groupId>
 			<artifactId>x-sharedlib</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>com.x</groupId>
+			<artifactId>x-redis</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
 		</dependency>
 		<dependency>

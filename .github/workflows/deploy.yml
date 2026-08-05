@@ -26,6 +26,11 @@ jobs:
           repository: sieng-vathana/x-sharedlib
           path: x-sharedlib
       - run: mvn --batch-mode --no-transfer-progress -DskipTests install -f x-sharedlib/pom.xml
+      - uses: actions/checkout@v4
+        with:
+          repository: sieng-vathana/x-redis
+          path: x-redis
+      - run: mvn --batch-mode --no-transfer-progress -DskipTests install -f x-redis/pom.xml
       - run: mvn --batch-mode --no-transfer-progress -DskipTests package
       - uses: docker/login-action@v3
         with:
@@ -48,7 +53,7 @@ jobs:
         run: |
           sudo k3s kubectl -n x-platform create deployment x-business-service --image=ghcr.io/sieng-vathana/x-business-service:${{ github.sha }} --dry-run=client -o yaml | sudo k3s kubectl apply -f -
           sudo k3s kubectl -n x-platform expose deployment x-business-service --port=8080 --target-port=8080 --dry-run=client -o yaml | sudo k3s kubectl apply -f -
-          sudo k3s kubectl -n x-platform set env deployment/x-business-service SERVER_PORT=8080 SPRING_PROFILES_ACTIVE=production SPRING_DATASOURCE_URL=jdbc:mysql://mysql.x-platform.svc.cluster.local:3306/x_prod SPRING_JPA_HIBERNATE_DDL_AUTO=update --from=secret/x-app-database
+          sudo k3s kubectl -n x-platform set env deployment/x-business-service SERVER_PORT=8080 SPRING_PROFILES_ACTIVE=production SPRING_DATASOURCE_URL=jdbc:mysql://mysql.x-platform.svc.cluster.local:3306/x_prod SPRING_JPA_HIBERNATE_DDL_AUTO=update REDIS_HOST=redis.x-platform.svc.cluster.local REDIS_PORT=6379 --from=secret/x-app-database
           sudo k3s kubectl -n x-platform rollout status deployment/x-business-service --timeout=180s
 
   notify:

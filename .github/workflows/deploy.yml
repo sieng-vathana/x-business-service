@@ -50,3 +50,70 @@ jobs:
           sudo k3s kubectl -n x-platform expose deployment x-business-service --port=8080 --target-port=8080 --dry-run=client -o yaml | sudo k3s kubectl apply -f -
           sudo k3s kubectl -n x-platform set env deployment/x-business-service SERVER_PORT=8080 SPRING_PROFILES_ACTIVE=production SPRING_DATASOURCE_URL=jdbc:mysql://mysql.x-platform.svc.cluster.local:3306/x_prod SPRING_JPA_HIBERNATE_DDL_AUTO=update --from=secret/x-app-database
           sudo k3s kubectl -n x-platform rollout status deployment/x-business-service --timeout=180s
+
+  notify:
+    if: always()
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram pipeline alert
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_MESSAGE_THREAD_ID: ${{ secrets.TELEGRAM_MESSAGE_THREAD_ID }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
+          APP_NAME: ${{ github.event.repository.name }}
+          IMAGE_REPOSITORY: ghcr.io/${{ github.repository }}
+          COMMITTER: ${{ github.event.head_commit.author.name || github.actor }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message || 'Manual workflow dispatch' }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "::warning::Telegram notification skipped; configure TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID."
+            exit 0
+          fi
+
+          stage_icon() {
+            case "$1" in
+              success) printf '✅ Success' ;;
+              failure) printf '🛑 Failed' ;;
+              cancelled) printf '🚫 Cancelled' ;;
+              *) printf '⏭ Skipped' ;;
+            esac
+          }
+
+          html_escape() {
+            sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
+          }
+
+          if [ "$BUILD_RESULT" = success ] && [ "$DEPLOY_RESULT" = success ]; then
+            title='🟢 CI/CD PIPELINE SUCCEEDED'
+          else
+            title='🔴 CI/CD PIPELINE FAILED'
+          fi
+
+          short_sha=${GITHUB_SHA::7}
+          build_time=$(TZ=Asia/Phnom_Penh date '+%d-%b-%Y | %I:%M %p')
+          committer=$(printf '%s' "$COMMITTER" | html_escape)
+          commit_message=${COMMIT_MESSAGE%%$'\n'*}
+          commit_message=$(printf '%s' "$commit_message" | html_escape)
+          container_image="${IMAGE_REPOSITORY}:${GITHUB_SHA}"
+
+          message=$(printf '%s\n\n📌 Project Details\n• Environment : production\n• Project     : x-platform\n• Application : %s\n• Build #     : #%s\n• Time        : %s\n\n%s\n• Build & Push Image: %s\n• Deploy K3s        : %s\n\n🐳 Container Image\n<code>%s</code>\n\n👤 Commit Info\n• Branch    : origin/%s (<code>%s</code>)\n• Committer : %s\n• Message   : %s' \
+            "$title" "$APP_NAME" "$GITHUB_RUN_NUMBER" "$build_time" \
+            "$([ "$title" = '🟢 CI/CD PIPELINE SUCCEEDED' ] && printf '✅ Stage Breakdown' || printf '❌ Stage Breakdown')" \
+            "$(stage_icon "$BUILD_RESULT")" \
+            "$(stage_icon "$DEPLOY_RESULT")" \
+            "$container_image" "$GITHUB_REF_NAME" "$short_sha" "$committer" "$commit_message")
+
+          jq -n \
+            --arg chat_id "$TELEGRAM_CHAT_ID" \
+            --arg message_thread_id "$TELEGRAM_MESSAGE_THREAD_ID" \
+            --arg text "$message" \
+            '{chat_id: $chat_id, text: $text, parse_mode: "HTML", disable_web_page_preview: true}
+             + if $message_thread_id == "" then {} else {message_thread_id: ($message_thread_id | tonumber)} end' \
+            | curl --fail --silent --show-error \
+                -H 'Content-Type: application/json' \
+                --data-binary @- \
+                "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+                >/dev/null

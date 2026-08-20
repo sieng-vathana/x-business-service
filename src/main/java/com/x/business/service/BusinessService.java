@@ -71,6 +71,8 @@ public class BusinessService {
         }
         if (request.usdToKhrExchangeRate() != null) {
             business.setUsdToKhrExchangeRate(normalizeExchangeRate(request.usdToKhrExchangeRate()));
+        } else if (business.getUsdToKhrExchangeRate() == null || business.getUsdToKhrExchangeRate().signum() <= 0) {
+            business.setUsdToKhrExchangeRate(DEFAULT_USD_TO_KHR_RATE);
         }
         if (request.pricesIncludeTax() != null) {
             business.setPricesIncludeTax(request.pricesIncludeTax());
@@ -131,7 +133,7 @@ public class BusinessService {
                 business.getName(),
                 business.getCode(),
                 business.getDefaultCurrencyCode(),
-                business.getUsdToKhrExchangeRate() == null
+                business.getUsdToKhrExchangeRate() == null || business.getUsdToKhrExchangeRate().signum() <= 0
                         ? DEFAULT_USD_TO_KHR_RATE
                         : business.getUsdToKhrExchangeRate(),
                 business.getTaxRegistrationNumber(),

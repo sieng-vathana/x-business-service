@@ -19,12 +19,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Currency;
 import java.time.ZoneId;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 @Service
 @RequiredArgsConstructor
 public class BusinessService {
 
     private static final int ACTIVE_STATUS = 1;
+    private static final BigDecimal DEFAULT_USD_TO_KHR_RATE = new BigDecimal("4000.000000");
 
     private final BusinessRepository businessRepository;
 
@@ -36,11 +39,13 @@ public class BusinessService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Business code already exists");
         }
 
+        String currency = normalizeCurrencyCode(request.defaultCurrencyCode());
         Business business = Business.builder()
                 .userId(request.ownerUserId())
                 .name(request.name().trim())
                 .code(code)
-                .defaultCurrencyCode(normalizeCurrencyCode(request.defaultCurrencyCode()))
+                .defaultCurrencyCode(currency)
+                .usdToKhrExchangeRate(normalizeExchangeRate(request.usdToKhrExchangeRate()))
                 .taxRegistrationNumber(trimToNull(request.taxRegistrationNumber()))
                 .taxRegistrationLabel(trimToNull(request.taxRegistrationLabel()))
                 .taxId(request.defaultTaxId())
@@ -61,6 +66,15 @@ public class BusinessService {
         Business business = businessRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));
         business.setName(request.name().trim());
+        if (request.defaultCurrencyCode() != null && !request.defaultCurrencyCode().isBlank()) {
+            business.setDefaultCurrencyCode(normalizeCurrencyCode(request.defaultCurrencyCode()));
+        }
+        if (request.usdToKhrExchangeRate() != null) {
+            business.setUsdToKhrExchangeRate(normalizeExchangeRate(request.usdToKhrExchangeRate()));
+        }
+        if (request.pricesIncludeTax() != null) {
+            business.setPricesIncludeTax(request.pricesIncludeTax());
+        }
         return toResponse(businessRepository.save(business));
     }
 
@@ -117,6 +131,9 @@ public class BusinessService {
                 business.getName(),
                 business.getCode(),
                 business.getDefaultCurrencyCode(),
+                business.getUsdToKhrExchangeRate() == null
+                        ? DEFAULT_USD_TO_KHR_RATE
+                        : business.getUsdToKhrExchangeRate(),
                 business.getTaxRegistrationNumber(),
                 business.getTaxRegistrationLabel(),
                 business.getTaxId(),
@@ -126,5 +143,13 @@ public class BusinessService {
                 business.getStatus(),
                 business.getCreatedAt(),
                 business.getUpdatedAt());
+    }
+
+    private BigDecimal normalizeExchangeRate(BigDecimal rate) {
+        BigDecimal normalized = rate == null ? DEFAULT_USD_TO_KHR_RATE : rate;
+        if (normalized.signum() <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "USD to KHR exchange rate must be positive");
+        }
+        return normalized.setScale(6, RoundingMode.HALF_UP);
     }
 }

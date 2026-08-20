@@ -15,6 +15,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -43,6 +44,11 @@ public class Business {
 
     @Column(name = "default_currency_code", nullable = false, length = 3)
     private String defaultCurrencyCode;
+
+    /** Number of Cambodian riel in one US dollar for POS currency conversion. */
+    @Column(name = "usd_to_khr_exchange_rate", nullable = false, precision = 19, scale = 6)
+    @Builder.Default
+    private BigDecimal usdToKhrExchangeRate = new BigDecimal("4000.000000");
 
     @Column(name = "tax_registration_number", length = 100)
     private String taxRegistrationNumber;

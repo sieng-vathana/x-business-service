@@ -77,6 +77,12 @@ public class BusinessService {
         if (request.pricesIncludeTax() != null) {
             business.setPricesIncludeTax(request.pricesIncludeTax());
         }
+        if (request.taxRegistrationNumber() != null) {
+            business.setTaxRegistrationNumber(trimToNull(request.taxRegistrationNumber()));
+        }
+        if (request.taxRegistrationLabel() != null) {
+            business.setTaxRegistrationLabel(trimToNull(request.taxRegistrationLabel()));
+        }
         return toResponse(businessRepository.save(business));
     }
 

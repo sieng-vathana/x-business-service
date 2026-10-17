@@ -83,6 +83,9 @@ public class BusinessService {
         if (request.taxRegistrationLabel() != null) {
             business.setTaxRegistrationLabel(trimToNull(request.taxRegistrationLabel()));
         }
+        if (request.bakongAccountId() != null) {
+            business.setBakongAccountId(trimToNull(request.bakongAccountId()));
+        }
         return toResponse(businessRepository.save(business));
     }
 
@@ -150,7 +153,8 @@ public class BusinessService {
                 business.getFiscalYearStartMonth(),
                 business.getStatus(),
                 business.getCreatedAt(),
-                business.getUpdatedAt());
+                business.getUpdatedAt(),
+                business.getBakongAccountId());
     }
 
     private BigDecimal normalizeExchangeRate(BigDecimal rate) {

@@ -50,6 +50,10 @@ public class Business {
     @Builder.Default
     private BigDecimal usdToKhrExchangeRate = new BigDecimal("4000.000000");
 
+    /** Bakong account that receives KHQR payments from the POS, e.g. shopname@aclb. */
+    @Column(name = "bakong_account_id", length = 32)
+    private String bakongAccountId;
+
     @Column(name = "tax_registration_number", length = 100)
     private String taxRegistrationNumber;
 

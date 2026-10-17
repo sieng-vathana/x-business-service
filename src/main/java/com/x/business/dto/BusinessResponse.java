@@ -18,7 +18,18 @@ public record BusinessResponse(
         Integer fiscalYearStartMonth,
         Integer status,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt) {
+        LocalDateTime updatedAt,
+        String bakongAccountId) {
+
+    public BusinessResponse(
+            Long id, Long ownerUserId, String name, String code, String defaultCurrencyCode,
+            BigDecimal usdToKhrExchangeRate, String taxRegistrationNumber, String taxRegistrationLabel,
+            Long defaultTaxId, Boolean pricesIncludeTax, String timeZone, Integer fiscalYearStartMonth,
+            Integer status, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this(id, ownerUserId, name, code, defaultCurrencyCode, usdToKhrExchangeRate, taxRegistrationNumber,
+                taxRegistrationLabel, defaultTaxId, pricesIncludeTax, timeZone, fiscalYearStartMonth, status,
+                createdAt, updatedAt, null);
+    }
 
     public BusinessResponse(
             Long id, Long ownerUserId, String name, String code, String defaultCurrencyCode,

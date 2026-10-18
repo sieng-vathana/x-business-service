@@ -13,6 +13,11 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+  task:
+    scheduling:
+      pool:
+        # Telegram long polling holds one thread; the daily summary needs another.
+        size: 2
 
 x:
   http:
@@ -22,6 +27,10 @@ x:
       hop: "x-api-gateway → x-bff → x-business-service"
       hops:
         /api/v1/businesses: "x-api-gateway → x-bff → x-business-service"
+  telegram:
+    # Bot from @BotFather that sends merchant alerts; alerts stay off while it is empty.
+    bot-token: ${TELEGRAM_BOT_TOKEN:}
+    polling-enabled: ${TELEGRAM_POLLING_ENABLED:true}
   redis:
     enabled: ${X_REDIS_ENABLED:true}
     key-prefix: x

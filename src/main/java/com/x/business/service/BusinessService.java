@@ -89,6 +89,15 @@ public class BusinessService {
         return toResponse(businessRepository.save(business));
     }
 
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.BUSINESS_BY_ID, key = "#id"),
+            @CacheEvict(cacheNames = CacheNames.BUSINESSES_BY_OWNER, allEntries = true)
+    })
+    @Transactional
+    public void deleteFailedRegistration(Long id) {
+        businessRepository.deleteById(id);
+    }
+
     @Cacheable(cacheNames = CacheNames.BUSINESS_BY_ID, key = "#id")
     @Transactional(readOnly = true)
     public BusinessResponse getById(Long id) {

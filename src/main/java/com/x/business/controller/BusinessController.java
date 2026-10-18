@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -39,6 +40,13 @@ public class BusinessController {
             @PathVariable @Positive Long id,
             @Valid @RequestBody UpdateBusinessRequest request) {
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Business updated", businessService.update(id, request)));
+    }
+
+    /** Used only to compensate a failed cross-service workspace registration. */
+    @DeleteMapping("/{id}/registration-failure")
+    public ResponseEntity<Void> deleteFailedRegistration(@PathVariable @Positive Long id) {
+        businessService.deleteFailedRegistration(id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")

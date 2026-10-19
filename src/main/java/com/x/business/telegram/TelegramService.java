@@ -228,6 +228,15 @@ public class TelegramService {
                 .toList();
     }
 
+    /** Names of the businesses already sending alerts to this chat; empty if it is not connected. */
+    @Transactional(readOnly = true)
+    public List<String> businessesUsing(long chatId) {
+        return chatRepository.findAllByChatId(chatId).stream()
+                .map(chat -> businessRepository.findById(chat.getBusinessId()).map(Business::getName).orElse("your business"))
+                .distinct()
+                .toList();
+    }
+
     /** Stops alerts to a chat that sent /stop or removed the bot; returns how many businesses used it. */
     @Transactional
     public int forgetChat(long chatId) {

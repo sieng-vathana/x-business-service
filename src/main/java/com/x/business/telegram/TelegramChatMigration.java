@@ -4,7 +4,6 @@ import com.x.business.entity.TelegramChat;
 import com.x.business.entity.TelegramSettings;
 import com.x.business.repository.TelegramChatRepository;
 import com.x.business.repository.TelegramSettingsRepository;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -19,13 +18,18 @@ import java.util.List;
  * business's first row in business_telegram_chats, with its topic and alert switches, for all stores.
  */
 @Component
-@RequiredArgsConstructor
 public class TelegramChatMigration {
 
     private static final Logger log = LoggerFactory.getLogger(TelegramChatMigration.class);
 
     private final TelegramSettingsRepository settingsRepository;
     private final TelegramChatRepository chatRepository;
+
+    public TelegramChatMigration(TelegramSettingsRepository settingsRepository,
+                                 TelegramChatRepository chatRepository) {
+        this.settingsRepository = settingsRepository;
+        this.chatRepository = chatRepository;
+    }
 
     @EventListener(ApplicationReadyEvent.class)
     @Transactional

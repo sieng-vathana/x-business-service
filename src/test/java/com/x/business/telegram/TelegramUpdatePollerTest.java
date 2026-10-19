@@ -44,6 +44,31 @@ class TelegramUpdatePollerTest {
     }
 
     @Test
+    void bareStartInAConnectedGroupTopicPointsToHere() throws Exception {
+        when(telegramService.businessesUsing(-100777L)).thenReturn(List.of("Shopify"));
+
+        poller.handle(update("""
+                {"update_id":5,"message":{"text":"/start@tinhluk_bot","is_topic_message":true,"message_thread_id":42,
+                 "chat":{"id":-100777,"title":"Staff","type":"supergroup","is_forum":true}}}
+                """));
+
+        verify(telegramService).deliver(eq(-100777L), eq(42L), contains("already gets TinhLuk alerts for Shopify"));
+        verify(telegramService).deliver(eq(-100777L), eq(42L), contains("send /here"));
+        verify(telegramService, never()).linkChat(anyString(), any());
+    }
+
+    @Test
+    void bareStartInANewChatExplainsHowToConnect() throws Exception {
+        when(telegramService.businessesUsing(55L)).thenReturn(List.of());
+
+        poller.handle(update("""
+                {"update_id":6,"message":{"text":"/start","chat":{"id":55,"first_name":"Vathana","type":"private"}}}
+                """));
+
+        verify(telegramService).deliver(eq(55L), isNull(), contains("tap Connect Telegram"));
+    }
+
+    @Test
     void expiredCodeExplainsHowToReconnect() throws Exception {
         when(telegramService.linkChat("OLD", new TelegramService.ChatPlace(55L, null, "Vathana Sieng", "private", null))).thenReturn(Optional.empty());
 

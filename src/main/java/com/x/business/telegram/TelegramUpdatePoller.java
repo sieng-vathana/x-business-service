@@ -91,7 +91,7 @@ public class TelegramUpdatePoller {
         if ("/start".equals(command)) {
             telegramService.deliver(chatId, threadId, parts.length > 1
                     ? connect(parts[1].trim(), place)
-                    : HOW_TO_CONNECT);
+                    : alreadyConnected(chatId, threadId));
         } else if ("/here".equals(command)) {
             List<String> businesses = telegramService.useTopic(place);
             telegramService.deliver(chatId, threadId, businesses.isEmpty()
@@ -102,6 +102,29 @@ public class TelegramUpdatePoller {
             telegramService.deliver(chatId, threadId, telegramService.forgetChat(chatId) > 0
                     ? "TinhLuk alerts are turned off for this chat."
                     : "This chat does not receive TinhLuk alerts.");
+        }
+    }
+
+    /**
+     * /start without a code: a chat that is already connected is told how to move alerts to the topic it is in,
+     * instead of being sent to connect again.
+     */
+    private String alreadyConnected(long chatId, Long threadId) {
+        List<String> businesses = telegramService.businessesUsing(chatId);
+        if (businesses.isEmpty()) return HOW_TO_CONNECT;
+        String bot = botMention();
+        return "✅ This chat already gets TinhLuk alerts for " + String.join(", ", businesses) + ".\n"
+                + (threadId == null
+                        ? "To get them in a topic instead, open that topic and send /here" + bot + " there."
+                        : "To get them in this topic, send /here" + bot + " here.");
+    }
+
+    private String botMention() {
+        try {
+            String username = telegramClient.botUsername();
+            return username == null || username.isBlank() ? "" : "@" + username;
+        } catch (RuntimeException exception) {
+            return "";
         }
     }
 

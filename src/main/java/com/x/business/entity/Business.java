@@ -74,8 +74,18 @@ public class Business {
     @Column(name = "fiscal_year_start_month", nullable = false)
     private Integer fiscalYearStartMonth;
 
+    /** 0 = awaiting review, 1 = approved, -1 = rejected. Existing businesses keep status 1. */
     @Column(nullable = false)
     private Integer status;
+
+    @Column(name = "review_reason", length = 1000)
+    private String reviewReason;
+
+    @Column(name = "reviewed_by_user_id")
+    private Long reviewedByUserId;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

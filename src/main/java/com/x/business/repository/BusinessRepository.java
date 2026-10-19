@@ -9,4 +9,6 @@ public interface BusinessRepository extends JpaRepository<Business, Long> {
     boolean existsByCode(String code);
 
     List<Business> findAllByUserIdOrderByCreatedAtDesc(Long userId);
+
+    List<Business> findAllByStatusOrderByCreatedAtAsc(Integer status);
 }

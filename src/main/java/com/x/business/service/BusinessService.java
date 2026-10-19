@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Currency;
 import java.time.ZoneId;
@@ -26,7 +27,9 @@ import java.math.RoundingMode;
 @RequiredArgsConstructor
 public class BusinessService {
 
+    private static final int PENDING_STATUS = 0;
     private static final int ACTIVE_STATUS = 1;
+    private static final int REJECTED_STATUS = -1;
     private static final BigDecimal DEFAULT_USD_TO_KHR_RATE = new BigDecimal("4000.000000");
 
     private final BusinessRepository businessRepository;
@@ -52,7 +55,7 @@ public class BusinessService {
                 .pricesIncludeTax(request.pricesIncludeTax() == null || request.pricesIncludeTax())
                 .timeZone(normalizeTimeZone(request.timeZone()))
                 .fiscalYearStartMonth(request.fiscalYearStartMonth())
-                .status(ACTIVE_STATUS)
+                .status(PENDING_STATUS)
                 .build();
         return toResponse(businessRepository.save(business));
     }
@@ -114,6 +117,70 @@ public class BusinessService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<BusinessResponse> getPendingApprovals() {
+        return businessRepository.findAllByStatusOrderByCreatedAtAsc(PENDING_STATUS).stream()
+                .map(this::toResponse).toList();
+    }
+
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.BUSINESS_BY_ID, key = "#id"),
+            @CacheEvict(cacheNames = CacheNames.BUSINESSES_BY_OWNER, allEntries = true)
+    })
+    @Transactional
+    public BusinessResponse approve(Long id, Long reviewerUserId) {
+        Business business = pendingBusiness(id);
+        business.setStatus(ACTIVE_STATUS);
+        business.setReviewReason(null);
+        business.setReviewedByUserId(reviewerUserId);
+        business.setReviewedAt(LocalDateTime.now());
+        return toResponse(businessRepository.save(business));
+    }
+
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.BUSINESS_BY_ID, key = "#id"),
+            @CacheEvict(cacheNames = CacheNames.BUSINESSES_BY_OWNER, allEntries = true)
+    })
+    @Transactional
+    public BusinessResponse reject(Long id, Long reviewerUserId, String reason) {
+        if (reason == null || reason.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A rejection reason is required");
+        }
+        Business business = pendingBusiness(id);
+        business.setStatus(REJECTED_STATUS);
+        business.setReviewReason(reason.trim());
+        business.setReviewedByUserId(reviewerUserId);
+        business.setReviewedAt(LocalDateTime.now());
+        return toResponse(businessRepository.save(business));
+    }
+
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.BUSINESS_BY_ID, key = "#id"),
+            @CacheEvict(cacheNames = CacheNames.BUSINESSES_BY_OWNER, allEntries = true)
+    })
+    @Transactional
+    public BusinessResponse resubmit(Long id) {
+        Business business = businessRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));
+        if (business.getStatus() == null || business.getStatus() != REJECTED_STATUS) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only rejected businesses can be resubmitted");
+        }
+        business.setStatus(PENDING_STATUS);
+        business.setReviewReason(null);
+        business.setReviewedByUserId(null);
+        business.setReviewedAt(null);
+        return toResponse(businessRepository.save(business));
+    }
+
+    private Business pendingBusiness(Long id) {
+        Business business = businessRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));
+        if (business.getStatus() == null || business.getStatus() != PENDING_STATUS) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only pending businesses can be reviewed");
+        }
+        return business;
+    }
+
     private String normalizeCode(String code) {
         return code.trim().toUpperCase(Locale.ROOT);
     }
@@ -163,7 +230,10 @@ public class BusinessService {
                 business.getStatus(),
                 business.getCreatedAt(),
                 business.getUpdatedAt(),
-                business.getBakongAccountId());
+                business.getBakongAccountId(),
+                business.getReviewReason(),
+                business.getReviewedByUserId(),
+                business.getReviewedAt());
     }
 
     private BigDecimal normalizeExchangeRate(BigDecimal rate) {

@@ -77,4 +77,34 @@ public class BusinessController {
     public ResponseEntity<ApiResponse<List<BusinessResponse>>> getByOwner(@RequestParam @Positive Long ownerUserId) {
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), businessService.getByOwner(ownerUserId)));
     }
+
+    @GetMapping("/approvals/pending")
+    public ResponseEntity<ApiResponse<List<BusinessResponse>>> pendingApprovals() {
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), businessService.getPendingApprovals()));
+    }
+
+    @PostMapping("/{id}/approval/approve")
+    public ResponseEntity<ApiResponse<BusinessResponse>> approve(
+            @PathVariable @Positive Long id, @RequestParam @Positive Long reviewerUserId) {
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(),
+                "Business approved", businessService.approve(id, reviewerUserId)));
+    }
+
+    @PostMapping("/{id}/approval/reject")
+    public ResponseEntity<ApiResponse<BusinessResponse>> reject(
+            @PathVariable @Positive Long id, @RequestParam @Positive Long reviewerUserId,
+            @Valid @RequestBody ReviewBusinessRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(),
+                "Business rejected", businessService.reject(id, reviewerUserId, request.reason())));
+    }
+
+    @PostMapping("/{id}/approval/resubmit")
+    public ResponseEntity<ApiResponse<BusinessResponse>> resubmit(@PathVariable @Positive Long id) {
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(),
+                "Business submitted for review", businessService.resubmit(id)));
+    }
+
+    public record ReviewBusinessRequest(
+            @jakarta.validation.constraints.NotBlank
+            @jakarta.validation.constraints.Size(max = 1000) String reason) {}
 }

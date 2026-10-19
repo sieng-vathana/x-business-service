@@ -122,6 +122,20 @@ class TelegramServiceTest {
     }
 
     @Test
+    void formattedAlertsAreSentAsHtmlAndFallBackToPlainTextWhenRejected() {
+        chat(55L, null);
+        String html = "<b>Payment received · $1.50</b>\nCustomer: A &amp; B";
+
+        assertTrue(service.notify(2L, TelegramAlertType.KHQR_PAYMENT, 10L, html, "HTML"));
+        verify(telegramClient).sendMessage(55L, null, html, "HTML");
+
+        doThrow(new TelegramClient.TelegramException("Bad Request: can't parse entities", 400))
+                .when(telegramClient).sendMessage(55L, null, html, "HTML");
+        assertTrue(service.notify(2L, TelegramAlertType.KHQR_PAYMENT, 10L, html, "HTML"));
+        verify(telegramClient).sendMessage(55L, null, "Payment received · $1.50\nCustomer: A & B");
+    }
+
+    @Test
     void storesAndSwitchesAreChangedPerChat() {
         TelegramChat group = chat(-100777L, null);
 

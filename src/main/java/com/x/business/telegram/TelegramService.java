@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.HtmlUtils;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -169,13 +170,18 @@ public class TelegramService {
 
     /** Sends an alert from another service to each chat that wants this kind of alert for this store. */
     public boolean notify(Long businessId, TelegramAlertType type, Long storeId, String text) {
+        return notify(businessId, type, storeId, text, null);
+    }
+
+    /** As above; parseMode "HTML" sends the text with Telegram formatting. */
+    public boolean notify(Long businessId, TelegramAlertType type, Long storeId, String text, String parseMode) {
         if (!telegramClient.isConfigured()) {
             return false;
         }
         boolean sent = false;
         for (TelegramChat chat : chatRepository.findAllByBusinessIdOrderByIdAsc(businessId)) {
             if (wants(chat, type) && chat.covers(storeId)) {
-                sent |= deliver(chat.getChatId(), chat.getMessageThreadId(), text);
+                sent |= deliver(chat.getChatId(), chat.getMessageThreadId(), text, parseMode);
             }
         }
         return sent;
@@ -236,8 +242,23 @@ public class TelegramService {
 
     /** Sends a message, to a topic when threadId is set; a chat that blocked or removed the bot is disconnected. */
     boolean deliver(long chatId, Long threadId, String text) {
+        return deliver(chatId, threadId, text, null);
+    }
+
+    /** Formatted text Telegram cannot read (error 400) is sent again as plain text, so the alert still arrives. */
+    boolean deliver(long chatId, Long threadId, String text, String parseMode) {
         try {
-            telegramClient.sendMessage(chatId, threadId, text);
+            if (parseMode == null) {
+                telegramClient.sendMessage(chatId, threadId, text);
+            } else {
+                try {
+                    telegramClient.sendMessage(chatId, threadId, text, parseMode);
+                } catch (TelegramClient.TelegramException exception) {
+                    if (exception.getErrorCode() != 400 || exception.topicUnavailable()) throw exception;
+                    log.warn("Telegram rejected formatted alert for chat {}; sending plain text: {}", chatId, exception.getMessage());
+                    telegramClient.sendMessage(chatId, threadId, HtmlUtils.htmlUnescape(text.replaceAll("<[^>]+>", "")));
+                }
+            }
             return true;
         } catch (TelegramClient.TelegramException exception) {
             log.warn("Telegram message to chat {} topic {} failed: {}", chatId, threadId, exception.getMessage());

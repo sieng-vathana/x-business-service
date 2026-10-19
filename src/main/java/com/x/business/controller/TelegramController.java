@@ -86,7 +86,7 @@ public class TelegramController {
     public ResponseEntity<ApiResponse<Boolean>> notify(
             @PathVariable @Positive Long id,
             @Valid @RequestBody TelegramNotifyRequest request) {
-        boolean sent = telegramService.notify(id, request.type(), request.storeId(), request.text());
+        boolean sent = telegramService.notify(id, request.type(), request.storeId(), request.text(), request.parseMode());
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(ApiResponse.success(HttpStatus.ACCEPTED.value(), sent ? "Alert sent" : "Alert skipped", sent));
     }

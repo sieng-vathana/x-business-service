@@ -57,9 +57,17 @@ public class TelegramClient {
 
     /** Sends to a topic of a group with topics when threadId is set, otherwise to the chat itself. */
     public void sendMessage(long chatId, Long threadId, String text) {
+        sendMessage(chatId, threadId, text, null);
+    }
+
+    /** Same as {@link #sendMessage(long, Long, String)}, with Telegram formatting such as "HTML" when parseMode is set. */
+    public void sendMessage(long chatId, Long threadId, String text, String parseMode) {
         Map<String, Object> body = new HashMap<>(Map.of("chat_id", chatId, "text", text, "disable_web_page_preview", true));
         if (threadId != null) {
             body.put("message_thread_id", threadId);
+        }
+        if (parseMode != null) {
+            body.put("parse_mode", parseMode);
         }
         call("sendMessage", body);
     }

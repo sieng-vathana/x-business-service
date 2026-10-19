@@ -80,4 +80,44 @@ class BusinessServiceTest {
         assertEquals(0, resubmitted.status());
         assertEquals(null, resubmitted.reviewReason());
     }
+
+    @Test
+    void suspensionKeepsApprovalAndNeedsAReason() {
+        BusinessRepository repository = mock(BusinessRepository.class);
+        Business business = Business.builder().id(5L).status(1).build();
+        when(repository.findById(5L)).thenReturn(Optional.of(business));
+        when(repository.save(any(Business.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        BusinessService service = new BusinessService(repository);
+
+        assertThrows(ResponseStatusException.class, () -> service.suspend(5L, 9L, "  "));
+
+        var suspended = service.suspend(5L, 9L, " Fraud reports from customers ");
+        assertEquals(true, suspended.suspended());
+        assertEquals("Fraud reports from customers", suspended.suspensionReason());
+        assertEquals(9L, suspended.suspendedByUserId());
+        assertEquals(1, suspended.status());
+        assertThrows(ResponseStatusException.class, () -> service.suspend(5L, 9L, "again"));
+
+        var reinstated = service.reinstate(5L);
+        assertEquals(false, reinstated.suspended());
+        assertEquals(null, reinstated.suspensionReason());
+        assertEquals(1, reinstated.status());
+        assertThrows(ResponseStatusException.class, () -> service.reinstate(5L));
+    }
+
+    @Test
+    void adminListFiltersByStatusAndSearch() {
+        BusinessRepository repository = mock(BusinessRepository.class);
+        Business approved = Business.builder().id(1L).name("Sota Coffee").code("SOTA").status(1).build();
+        Business pending = Business.builder().id(2L).name("Kampot Pepper").code("KMP").status(0).build();
+        Business suspended = Business.builder().id(3L).name("Night Market").code("NIGHT").status(1)
+                .suspendedAt(java.time.LocalDateTime.now()).suspensionReason("Unpaid fees").build();
+        when(repository.findAll(any(org.springframework.data.domain.Sort.class))).thenReturn(java.util.List.of(approved, pending, suspended));
+        BusinessService service = new BusinessService(repository);
+
+        assertEquals(java.util.List.of(3L), service.listForAdmin("suspended", null).stream().map(b -> b.id()).toList());
+        assertEquals(java.util.List.of(1L), service.listForAdmin("approved", null).stream().map(b -> b.id()).toList());
+        assertEquals(java.util.List.of(2L), service.listForAdmin("", "kampot").stream().map(b -> b.id()).toList());
+        assertEquals(3, service.listForAdmin(null, null).size());
+    }
 }

@@ -85,6 +85,14 @@ public class TelegramChat {
     @Column(name = "summary_sent_on")
     private LocalDate summarySentOn;
 
+    /** Monday of the last week whose weekly summary was sent here. */
+    @Column(name = "weekly_summary_sent_on")
+    private LocalDate weeklySummarySentOn;
+
+    /** First day of the last month whose monthly summary was sent here. */
+    @Column(name = "monthly_summary_sent_on")
+    private LocalDate monthlySummarySentOn;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

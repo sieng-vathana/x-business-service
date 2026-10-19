@@ -24,4 +24,14 @@ public interface TelegramChatRepository extends JpaRepository<TelegramChat, Long
     @Modifying
     @Query("update TelegramChat c set c.summarySentOn = :day where c.id = :id")
     void markSummarySent(@Param("id") Long id, @Param("day") LocalDate day);
+
+    @Transactional
+    @Modifying
+    @Query("update TelegramChat c set c.weeklySummarySentOn = :weekStart where c.id = :id")
+    void markWeeklySummarySent(@Param("id") Long id, @Param("weekStart") LocalDate weekStart);
+
+    @Transactional
+    @Modifying
+    @Query("update TelegramChat c set c.monthlySummarySentOn = :monthStart where c.id = :id")
+    void markMonthlySummarySent(@Param("id") Long id, @Param("monthStart") LocalDate monthStart);
 }

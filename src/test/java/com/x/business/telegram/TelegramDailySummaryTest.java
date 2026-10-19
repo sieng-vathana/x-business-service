@@ -97,6 +97,44 @@ class TelegramDailySummaryTest {
     }
 
     @Test
+    void onMondayLastWeekIsSentOnceAfterTheDailySummary() {
+        TelegramChat chat = TelegramChat.builder().id(9L).businessId(2L).chatId(55L).build();
+        when(telegramService.deliver(eq(55L), any(), anyString())).thenReturn(true);
+        when(salesReportClient.stores(2L)).thenReturn(List.of(new SalesReportClient.StoreName(2L, "Shopify")));
+
+        summary.sendIfDue(chat, Instant.parse("2026-10-19T14:00:00Z"));   // Monday 21:00 in Phnom Penh
+
+        verify(chatRepository).markSummarySent(9L, LocalDate.of(2026, 10, 19));
+        verify(chatRepository).markWeeklySummarySent(9L, LocalDate.of(2026, 10, 12));
+        verify(telegramService).deliver(55L, null, "📅 Weekly summary · Sota\nMon 12 Oct – Sun 18 Oct 2026\n\nNo sales last week.");
+        // Last week runs from Monday 12 Oct 00:00 to Monday 19 Oct 00:00 in Phnom Penh, asked for in the server's time.
+        java.time.ZoneId phnomPenh = java.time.ZoneId.of("Asia/Phnom_Penh");
+        verify(salesReportClient).paymentTotals(2L, "USD",
+                LocalDate.of(2026, 10, 12).atStartOfDay(phnomPenh).withZoneSameInstant(java.time.ZoneId.systemDefault()).toLocalDateTime(),
+                LocalDate.of(2026, 10, 19).atStartOfDay(phnomPenh).withZoneSameInstant(java.time.ZoneId.systemDefault()).toLocalDateTime());
+        verify(chatRepository, never()).markMonthlySummarySent(anyLong(), any());
+
+        chat.setSummarySentOn(LocalDate.of(2026, 10, 19));
+        chat.setWeeklySummarySentOn(LocalDate.of(2026, 10, 12));
+        summary.sendIfDue(chat, Instant.parse("2026-10-19T15:00:00Z"));
+        verify(telegramService, org.mockito.Mockito.times(2)).deliver(eq(55L), any(), anyString());
+    }
+
+    @Test
+    void onTheFirstLastMonthIsSent() {
+        TelegramChat chat = TelegramChat.builder().id(9L).businessId(2L).chatId(55L)
+                .summarySentOn(LocalDate.of(2026, 11, 1)).build();
+        when(telegramService.deliver(eq(55L), any(), anyString())).thenReturn(true);
+        when(salesReportClient.stores(2L)).thenReturn(List.of(new SalesReportClient.StoreName(2L, "Shopify")));
+
+        summary.sendIfDue(chat, Instant.parse("2026-11-01T14:30:00Z"));   // Sunday 1 Nov 21:30 in Phnom Penh
+
+        verify(telegramService).deliver(55L, null, "🗓️ Monthly summary · Sota\nOctober 2026\n\nNo sales last month.");
+        verify(chatRepository).markMonthlySummarySent(9L, LocalDate.of(2026, 10, 1));
+        verify(chatRepository, never()).markWeeklySummarySent(anyLong(), any());
+    }
+
+    @Test
     void aChatForSomeStoresGetsOnlyThoseStores() {
         when(salesReportClient.stores(2L)).thenReturn(List.of(
                 new SalesReportClient.StoreName(2L, "Shopify"), new SalesReportClient.StoreName(3L, "Riverside")));

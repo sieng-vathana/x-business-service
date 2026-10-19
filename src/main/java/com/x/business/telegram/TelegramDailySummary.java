@@ -30,7 +30,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/** Sends each chat the day's sales of its stores once the business's summary hour has passed in its time zone. */
+/**
+ * Sends each chat the day's sales of its stores once the business's summary hour has passed in its time zone, and
+ * at the same hour last week's sales on Mondays and last month's on the 1st.
+ */
 @Component
 @RequiredArgsConstructor
 public class TelegramDailySummary {
@@ -38,6 +41,8 @@ public class TelegramDailySummary {
     private static final Logger log = LoggerFactory.getLogger(TelegramDailySummary.class);
     private static final ZoneId DEFAULT_ZONE = ZoneId.of("Asia/Phnom_Penh");
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("EEE d MMM yyyy", Locale.ENGLISH);
+    private static final DateTimeFormatter WEEK_START = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH);
+    private static final DateTimeFormatter MONTH = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH);
 
     private final TelegramSettingsRepository settingsRepository;
     private final TelegramChatRepository chatRepository;
@@ -71,22 +76,57 @@ public class TelegramDailySummary {
         ZoneId zone = zoneOf(business);
         ZonedDateTime localNow = now.atZone(zone);
         LocalDate today = localNow.toLocalDate();
-        if (localNow.getHour() < summaryHour || today.equals(chat.getSummarySentOn())) {
+        if (localNow.getHour() < summaryHour) {
             return;
         }
-        // Payments are stored in the server's local time, so the business's day is converted to it.
-        LocalDateTime from = today.atStartOfDay(zone).withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
-        LocalDateTime to = localNow.withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
-        String text = summaryText(business, chat.storeIdList(), today, from, to);
-        if (telegramService.deliver(chat.getChatId(), chat.getMessageThreadId(), text)) {
-            chatRepository.markSummarySent(chat.getId(), today);
+        if (!today.equals(chat.getSummarySentOn())) {
+            // Payments are stored in the server's local time, so the business's day is converted to it.
+            String text = summaryText(business, chat.storeIdList(), today, serverTime(today, zone),
+                    localNow.withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime());
+            if (telegramService.deliver(chat.getChatId(), chat.getMessageThreadId(), text)) {
+                chatRepository.markSummarySent(chat.getId(), today);
+            }
         }
+        // On Monday, last week (Monday to Sunday); on the 1st, last month. Each is sent once, on that day only.
+        if (today.getDayOfWeek() == java.time.DayOfWeek.MONDAY) {
+            LocalDate weekStart = today.minusWeeks(1);
+            if (!weekStart.equals(chat.getWeeklySummarySentOn())) {
+                String text = summaryText(business, chat.storeIdList(), "📅 Weekly summary · ",
+                        WEEK_START.format(weekStart) + " – " + DAY.format(today.minusDays(1)), "No sales last week.",
+                        serverTime(weekStart, zone), serverTime(today, zone));
+                if (telegramService.deliver(chat.getChatId(), chat.getMessageThreadId(), text)) {
+                    chatRepository.markWeeklySummarySent(chat.getId(), weekStart);
+                }
+            }
+        }
+        if (today.getDayOfMonth() == 1) {
+            LocalDate monthStart = today.minusMonths(1);
+            if (!monthStart.equals(chat.getMonthlySummarySentOn())) {
+                String text = summaryText(business, chat.storeIdList(), "🗓️ Monthly summary · ",
+                        MONTH.format(monthStart), "No sales last month.",
+                        serverTime(monthStart, zone), serverTime(today, zone));
+                if (telegramService.deliver(chat.getChatId(), chat.getMessageThreadId(), text)) {
+                    chatRepository.markMonthlySummarySent(chat.getId(), monthStart);
+                }
+            }
+        }
+    }
+
+    /** Midnight at the start of the business-local day, in the server's time, which is how payments are stored. */
+    private static LocalDateTime serverTime(LocalDate day, ZoneId zone) {
+        return day.atStartOfDay(zone).withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
     }
 
     /** The day's sales of the given stores, or of every store when stores is null. */
     String summaryText(Business business, List<Long> stores, LocalDate day, LocalDateTime from, LocalDateTime to) {
-        StringBuilder text = new StringBuilder("📊 Daily summary · ").append(business.getName())
-                .append('\n').append(DAY.format(day)).append('\n');
+        return summaryText(business, stores, "📊 Daily summary · ", DAY.format(day), "No sales today.", from, to);
+    }
+
+    /** Sales of the given stores (every store when stores is null) between from and to, under a title and date line. */
+    String summaryText(Business business, List<Long> stores, String title, String dateLine, String noSales,
+                       LocalDateTime from, LocalDateTime to) {
+        StringBuilder text = new StringBuilder(title).append(business.getName())
+                .append('\n').append(dateLine).append('\n');
         Map<String, BigDecimal> netByCurrency = new LinkedHashMap<>();
         for (SalesReportClient.StoreName store : salesReportClient.stores(business.getId())) {
             if (stores != null && !stores.contains(store.id())) {
@@ -115,7 +155,7 @@ public class TelegramDailySummary {
             }
         }
         if (netByCurrency.isEmpty()) {
-            return text.append("\nNo sales today.").toString();
+            return text.append('\n').append(noSales).toString();
         }
         return text.append("\nTotal after refunds: ")
                 .append(netByCurrency.entrySet().stream()

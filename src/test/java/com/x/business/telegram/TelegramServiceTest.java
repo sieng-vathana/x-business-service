@@ -39,11 +39,13 @@ class TelegramServiceTest {
     private TelegramService service;
     private final List<TelegramChat> chats = new ArrayList<>();
 
+    private BusinessRepository businessRepository;
+
     @BeforeEach
     void setUp() {
         settingsRepository = mock(TelegramSettingsRepository.class);
         chatRepository = mock(TelegramChatRepository.class);
-        BusinessRepository businessRepository = mock(BusinessRepository.class);
+        businessRepository = mock(BusinessRepository.class);
         telegramClient = mock(TelegramClient.class);
         when(telegramClient.isConfigured()).thenReturn(true);
         when(telegramClient.botUsername()).thenReturn("TinhLukAlertsBot");
@@ -207,5 +209,19 @@ class TelegramServiceTest {
     private TelegramChat chat(long chatId, Long threadId) {
         return chatRepository.save(TelegramChat.builder()
                 .businessId(2L).chatId(chatId).messageThreadId(threadId).chatTitle("Sota staff").build());
+    }
+
+    @Test
+    void starterPlanGetsPaymentAlertsOnlyAndOneChat() {
+        when(businessRepository.findById(2L)).thenReturn(Optional.of(Business.builder().id(2L).name("Sota").plan("STARTER").build()));
+        chat(55L, null);
+
+        assertTrue(service.notify(2L, TelegramAlertType.KHQR_PAYMENT, 10L, "paid"));
+        assertFalse(service.notify(2L, TelegramAlertType.LOW_STOCK, 10L, "low"));
+        assertFalse(service.notify(2L, TelegramAlertType.ONLINE_ORDER, 10L, "order"));
+        verify(telegramClient, never()).sendMessage(55L, null, "low");
+
+        var refused = assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> service.createLink(2L));
+        assertTrue(refused.getReason().contains("Starter plan allows 1 Telegram chat"));
     }
 }

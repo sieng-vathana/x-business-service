@@ -61,6 +61,7 @@ public class TelegramService {
         if (botUsername == null) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Telegram cannot be reached right now. Try again in a moment.");
         }
+        requireChatAllowance(businessId);
         TelegramSettings settings = settingsFor(businessId);
         String code = newLinkCode();
         LocalDateTime expiresAt = LocalDateTime.now().plus(LINK_LIFETIME);
@@ -175,7 +176,7 @@ public class TelegramService {
 
     /** As above; parseMode "HTML" sends the text with Telegram formatting. */
     public boolean notify(Long businessId, TelegramAlertType type, Long storeId, String text, String parseMode) {
-        if (!telegramClient.isConfigured()) {
+        if (!telegramClient.isConfigured() || !planAllows(businessId, type)) {
             return false;
         }
         boolean sent = false;
@@ -275,6 +276,28 @@ public class TelegramService {
                 forgetChat(chatId);
             }
             return false;
+        }
+    }
+
+/** Payment and account alerts are in every plan; order, low-stock and daily-summary alerts need Business or Pro. */
+    boolean planAllows(Long businessId, TelegramAlertType type) {
+        if (type == TelegramAlertType.KHQR_PAYMENT || type == TelegramAlertType.ACCOUNT) return true;
+        return businessRepository.findById(businessId)
+                .map(business -> com.x.business.plan.Plan.of(business.getPlan())
+                        .includes(com.x.business.plan.PlanFeature.ALL_TELEGRAM_ALERTS))
+                .orElse(false);
+    }
+
+    /** Each plan allows a number of connected chats; a new link is refused once the plan's chats are in use. */
+    private void requireChatAllowance(Long businessId) {
+        com.x.business.plan.Plan plan = businessRepository.findById(businessId)
+                .map(business -> com.x.business.plan.Plan.of(business.getPlan()))
+                .orElse(com.x.business.plan.Plan.LEGACY_DEFAULT);
+        Integer limit = plan.maxTelegramChats();
+        if (limit != null && chatRepository.findAllByBusinessIdOrderByIdAsc(businessId).size() >= limit) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Your " + plan.toResponse().name() + " plan allows "
+                    + limit + (limit == 1 ? " Telegram chat" : " Telegram chats")
+                    + ". Disconnect a chat or ask TinhLuk to upgrade your plan.");
         }
     }
 

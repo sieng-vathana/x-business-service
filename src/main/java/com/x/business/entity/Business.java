@@ -97,6 +97,17 @@ public class Business {
     @Column(name = "suspended_by_user_id")
     private Long suspendedByUserId;
 
+    /** STARTER, BUSINESS or PRO; null for merchants created before plans, who keep every feature. */
+    @Column(name = "plan", length = 16)
+    private String plan;
+
+    /** MONTHLY or YEARLY. */
+    @Column(name = "billing_cycle", length = 8)
+    private String billingCycle;
+
+    @Column(name = "trial_ends_at")
+    private LocalDateTime trialEndsAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

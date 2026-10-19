@@ -63,7 +63,8 @@ public class TelegramDailySummary {
 
     void sendIfDue(TelegramChat chat, Instant now) {
         Business business = businessRepository.findById(chat.getBusinessId()).orElse(null);
-        if (business == null) {
+        if (business == null || !com.x.business.plan.Plan.of(business.getPlan())
+                .includes(com.x.business.plan.PlanFeature.ALL_TELEGRAM_ALERTS)) {
             return;
         }
         int summaryHour = settingsRepository.findById(business.getId()).map(TelegramSettings::getDailySummaryHour).orElse(21);

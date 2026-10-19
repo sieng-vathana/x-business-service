@@ -28,7 +28,17 @@ public record CreateBusinessRequest(
         @NotNull(message = "Fiscal year start month is required")
         @Min(value = 1, message = "Fiscal year start month must be between 1 and 12")
         @Max(value = 12, message = "Fiscal year start month must be between 1 and 12") Integer fiscalYearStartMonth,
-        @Positive(message = "USD to KHR exchange rate must be positive") BigDecimal usdToKhrExchangeRate) {
+        @Positive(message = "USD to KHR exchange rate must be positive") BigDecimal usdToKhrExchangeRate,
+        @Pattern(regexp = "(?i)STARTER|BUSINESS|PRO", message = "Plan must be STARTER, BUSINESS or PRO") String plan,
+        @Pattern(regexp = "(?i)MONTHLY|YEARLY", message = "Billing cycle must be MONTHLY or YEARLY") String billingCycle) {
+
+    public CreateBusinessRequest(
+            Long ownerUserId, String name, String code, String defaultCurrencyCode,
+            String taxRegistrationNumber, String taxRegistrationLabel, Long defaultTaxId,
+            Boolean pricesIncludeTax, String timeZone, Integer fiscalYearStartMonth, BigDecimal usdToKhrExchangeRate) {
+        this(ownerUserId, name, code, defaultCurrencyCode, taxRegistrationNumber, taxRegistrationLabel,
+                defaultTaxId, pricesIncludeTax, timeZone, fiscalYearStartMonth, usdToKhrExchangeRate, null, null);
+    }
 
     public CreateBusinessRequest(
             Long ownerUserId, String name, String code, String defaultCurrencyCode,

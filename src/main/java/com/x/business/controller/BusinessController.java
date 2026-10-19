@@ -111,6 +111,20 @@ public class BusinessController {
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), businessService.listForAdmin(status, search)));
     }
 
+/** The plans merchants can choose, with prices, limits and the feature comparison. */
+    @GetMapping("/plans")
+    public ResponseEntity<ApiResponse<List<com.x.business.plan.PlanResponse>>> plans() {
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(),
+                java.util.Arrays.stream(com.x.business.plan.Plan.values()).map(com.x.business.plan.Plan::toResponse).toList()));
+    }
+
+    @PutMapping("/{id}/plan")
+    public ResponseEntity<ApiResponse<BusinessResponse>> changePlan(
+            @PathVariable @Positive Long id, @RequestBody java.util.Map<String, String> request) {
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Plan changed",
+                businessService.changePlan(id, request.get("plan"), request.get("billingCycle"))));
+    }
+
     @PostMapping("/{id}/suspension")
     public ResponseEntity<ApiResponse<BusinessResponse>> suspend(
             @PathVariable @Positive Long id, @RequestParam @Positive Long actorUserId,

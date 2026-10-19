@@ -56,6 +56,10 @@ public class BusinessService {
                 .timeZone(normalizeTimeZone(request.timeZone()))
                 .fiscalYearStartMonth(request.fiscalYearStartMonth())
                 .status(PENDING_STATUS)
+                // A new merchant picks a plan at sign-up and starts with the free trial.
+                .plan((request.plan() == null ? com.x.business.plan.Plan.STARTER : com.x.business.plan.Plan.of(request.plan())).name())
+                .billingCycle(request.billingCycle() == null ? "MONTHLY" : request.billingCycle().trim().toUpperCase(Locale.ROOT))
+                .trialEndsAt(LocalDateTime.now().plusDays(com.x.business.plan.Plan.TRIAL_DAYS))
                 .build();
         return toResponse(businessRepository.save(business));
     }
@@ -233,6 +237,29 @@ public class BusinessService {
         return toResponse(businessRepository.save(business));
     }
 
+/** Backoffice changes a merchant's plan; the change is immediate. */
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.BUSINESS_BY_ID, key = "#id"),
+            @CacheEvict(cacheNames = CacheNames.BUSINESSES_BY_OWNER, allEntries = true)
+    })
+    @Transactional
+    public BusinessResponse changePlan(Long id, String planCode, String billingCycle) {
+        if (planCode == null || !planCode.trim().toUpperCase(Locale.ROOT).matches("STARTER|BUSINESS|PRO")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Plan must be STARTER, BUSINESS or PRO");
+        }
+        Business business = businessRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));
+        business.setPlan(planCode.trim().toUpperCase(Locale.ROOT));
+        if (billingCycle != null && !billingCycle.isBlank()) {
+            String cycle = billingCycle.trim().toUpperCase(Locale.ROOT);
+            if (!cycle.matches("MONTHLY|YEARLY")) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Billing cycle must be MONTHLY or YEARLY");
+            }
+            business.setBillingCycle(cycle);
+        }
+        return toResponse(businessRepository.save(business));
+    }
+
     private Business pendingBusiness(Long id) {
         Business business = businessRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));
@@ -297,7 +324,10 @@ public class BusinessService {
                 business.getReviewedAt(),
                 business.getSuspendedAt(),
                 business.getSuspensionReason(),
-                business.getSuspendedByUserId());
+                business.getSuspendedByUserId(),
+                com.x.business.plan.Plan.of(business.getPlan()).name(),
+                business.getBillingCycle(),
+                business.getTrialEndsAt());
     }
 
     private BigDecimal normalizeExchangeRate(BigDecimal rate) {

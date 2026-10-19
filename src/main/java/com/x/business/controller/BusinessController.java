@@ -104,6 +104,27 @@ public class BusinessController {
                 "Business submitted for review", businessService.resubmit(id)));
     }
 
+    /** All merchants for the platform backoffice; status is pending, approved, rejected or suspended. */
+    @GetMapping("/admin")
+    public ResponseEntity<ApiResponse<List<BusinessResponse>>> listForAdmin(
+            @RequestParam(required = false) String status, @RequestParam(required = false) String search) {
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), businessService.listForAdmin(status, search)));
+    }
+
+    @PostMapping("/{id}/suspension")
+    public ResponseEntity<ApiResponse<BusinessResponse>> suspend(
+            @PathVariable @Positive Long id, @RequestParam @Positive Long actorUserId,
+            @Valid @RequestBody ReviewBusinessRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(),
+                "Merchant suspended", businessService.suspend(id, actorUserId, request.reason())));
+    }
+
+    @DeleteMapping("/{id}/suspension")
+    public ResponseEntity<ApiResponse<BusinessResponse>> reinstate(@PathVariable @Positive Long id) {
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(),
+                "Merchant reinstated", businessService.reinstate(id)));
+    }
+
     public record ReviewBusinessRequest(
             @jakarta.validation.constraints.NotBlank
             @jakarta.validation.constraints.Size(max = 1000) String reason) {}

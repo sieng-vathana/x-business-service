@@ -172,6 +172,67 @@ public class BusinessService {
         return toResponse(businessRepository.save(business));
     }
 
+    /**
+     * Every merchant for the platform backoffice, newest first. filter is "pending", "approved", "rejected" or
+     * "suspended"; search matches the name or code.
+     */
+    @Transactional(readOnly = true)
+    public List<BusinessResponse> listForAdmin(String filter, String search) {
+        String query = search == null ? "" : search.trim().toLowerCase(Locale.ROOT);
+        String wanted = filter == null ? "" : filter.trim().toLowerCase(Locale.ROOT);
+        return businessRepository.findAll(org.springframework.data.domain.Sort.by("createdAt").descending()).stream()
+                .filter(business -> switch (wanted) {
+                    case "suspended" -> business.getSuspendedAt() != null;
+                    case "pending" -> business.getSuspendedAt() == null && Integer.valueOf(PENDING_STATUS).equals(business.getStatus());
+                    case "approved" -> business.getSuspendedAt() == null && Integer.valueOf(ACTIVE_STATUS).equals(business.getStatus());
+                    case "rejected" -> business.getSuspendedAt() == null && Integer.valueOf(REJECTED_STATUS).equals(business.getStatus());
+                    default -> true;
+                })
+                .filter(business -> query.isEmpty()
+                        || business.getName().toLowerCase(Locale.ROOT).contains(query)
+                        || business.getCode().toLowerCase(Locale.ROOT).contains(query))
+                .map(this::toResponse)
+                .toList();
+    }
+
+    /** Suspends a merchant with a reason. Its approval status is kept, so reinstating returns it to where it was. */
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.BUSINESS_BY_ID, key = "#id"),
+            @CacheEvict(cacheNames = CacheNames.BUSINESSES_BY_OWNER, allEntries = true)
+    })
+    @Transactional
+    public BusinessResponse suspend(Long id, Long actorUserId, String reason) {
+        if (reason == null || reason.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A suspension reason is required");
+        }
+        Business business = businessRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));
+        if (business.getSuspendedAt() != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This merchant is already suspended");
+        }
+        business.setSuspendedAt(LocalDateTime.now());
+        business.setSuspensionReason(reason.trim());
+        business.setSuspendedByUserId(actorUserId);
+        return toResponse(businessRepository.save(business));
+    }
+
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.BUSINESS_BY_ID, key = "#id"),
+            @CacheEvict(cacheNames = CacheNames.BUSINESSES_BY_OWNER, allEntries = true)
+    })
+    @Transactional
+    public BusinessResponse reinstate(Long id) {
+        Business business = businessRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));
+        if (business.getSuspendedAt() == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This merchant is not suspended");
+        }
+        business.setSuspendedAt(null);
+        business.setSuspensionReason(null);
+        business.setSuspendedByUserId(null);
+        return toResponse(businessRepository.save(business));
+    }
+
     private Business pendingBusiness(Long id) {
         Business business = businessRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));
@@ -233,7 +294,10 @@ public class BusinessService {
                 business.getBakongAccountId(),
                 business.getReviewReason(),
                 business.getReviewedByUserId(),
-                business.getReviewedAt());
+                business.getReviewedAt(),
+                business.getSuspendedAt(),
+                business.getSuspensionReason(),
+                business.getSuspendedByUserId());
     }
 
     private BigDecimal normalizeExchangeRate(BigDecimal rate) {

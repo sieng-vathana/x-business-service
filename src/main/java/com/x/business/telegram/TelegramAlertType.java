@@ -5,5 +5,7 @@ public enum TelegramAlertType {
     KHQR_PAYMENT,
     ONLINE_ORDER,
     LOW_STOCK,
-    DAILY_SUMMARY
+    DAILY_SUMMARY,
+    /** Notices from the platform about the account itself, such as a suspension; every chat gets them. */
+    ACCOUNT
 }

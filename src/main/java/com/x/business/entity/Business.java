@@ -87,6 +87,16 @@ public class Business {
     @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
 
+    /** Set while the platform has suspended the merchant; cleared when it is reinstated. Separate from approval. */
+    @Column(name = "suspended_at")
+    private LocalDateTime suspendedAt;
+
+    @Column(name = "suspension_reason", length = 1000)
+    private String suspensionReason;
+
+    @Column(name = "suspended_by_user_id")
+    private Long suspendedByUserId;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -284,6 +284,7 @@ public class TelegramService {
             case ONLINE_ORDER -> Boolean.TRUE.equals(chat.getOrderAlerts());
             case LOW_STOCK -> Boolean.TRUE.equals(chat.getLowStockAlerts());
             case DAILY_SUMMARY -> Boolean.TRUE.equals(chat.getDailySummary());
+            case ACCOUNT -> true;
         };
     }
 

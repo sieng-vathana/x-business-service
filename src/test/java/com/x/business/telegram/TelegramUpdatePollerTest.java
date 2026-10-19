@@ -34,7 +34,7 @@ class TelegramUpdatePollerTest {
 
     @Test
     void groupStartWithCodeConnectsTheGroup() throws Exception {
-        when(telegramService.linkChat("CODE123", -100777L, null, "Sota staff")).thenReturn(Optional.of("Sota"));
+        when(telegramService.linkChat("CODE123", new TelegramService.ChatPlace(-100777L, null, "Sota staff", "group", null))).thenReturn(Optional.of("Sota"));
 
         poller.handle(update("""
                 {"update_id":1,"message":{"text":"/start@TinhLokAlertsBot CODE123","chat":{"id":-100777,"title":"Sota staff","type":"group"}}}
@@ -45,7 +45,7 @@ class TelegramUpdatePollerTest {
 
     @Test
     void expiredCodeExplainsHowToReconnect() throws Exception {
-        when(telegramService.linkChat("OLD", 55L, null, "Vathana Sieng")).thenReturn(Optional.empty());
+        when(telegramService.linkChat("OLD", new TelegramService.ChatPlace(55L, null, "Vathana Sieng", "private", null))).thenReturn(Optional.empty());
 
         poller.handle(update("""
                 {"update_id":2,"message":{"text":"/start OLD","chat":{"id":55,"first_name":"Vathana","last_name":"Sieng","type":"private"}}}
@@ -71,20 +71,21 @@ class TelegramUpdatePollerTest {
 
     @Test
     void hereInATopicSendsTheAlertsToThatTopic() throws Exception {
-        when(telegramService.useTopic(-100777L, 42L)).thenReturn(List.of("Sota"));
+        when(telegramService.useTopic(any())).thenReturn(List.of("Sota"));
 
         poller.handle(update("""
                 {"update_id":6,"message":{"text":"/here@TinhLokAlertsBot","message_thread_id":42,"is_topic_message":true,
+                 "reply_to_message":{"message_id":42,"forum_topic_created":{"name":"Shop alerts"}},
                  "chat":{"id":-100777,"title":"Sota staff","type":"supergroup","is_forum":true}}}
                 """));
 
-        verify(telegramService).useTopic(-100777L, 42L);
+        verify(telegramService).useTopic(new TelegramService.ChatPlace(-100777L, 42L, "Sota staff", "supergroup", "Shop alerts"));
         verify(telegramService).deliver(eq(-100777L), eq(42L), contains("will arrive in this topic"));
     }
 
     @Test
     void startFromATopicConnectsThatTopic() throws Exception {
-        when(telegramService.linkChat("CODE123", -100777L, 42L, "Sota staff")).thenReturn(Optional.of("Sota"));
+        when(telegramService.linkChat("CODE123", new TelegramService.ChatPlace(-100777L, 42L, "Sota staff", "supergroup", null))).thenReturn(Optional.of("Sota"));
 
         poller.handle(update("""
                 {"update_id":7,"message":{"text":"/start@TinhLokAlertsBot CODE123","message_thread_id":42,"is_topic_message":true,
@@ -96,7 +97,7 @@ class TelegramUpdatePollerTest {
 
     @Test
     void hereInAChatThatIsNotConnectedExplainsHowToConnect() throws Exception {
-        when(telegramService.useTopic(55L, null)).thenReturn(List.of());
+        when(telegramService.useTopic(any())).thenReturn(List.of());
 
         poller.handle(update("""
                 {"update_id":8,"message":{"text":"/here","chat":{"id":55,"type":"private"}}}

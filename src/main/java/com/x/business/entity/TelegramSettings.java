@@ -15,7 +15,11 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** Telegram alerts of one business. The chat is linked when the owner presses Start in the bot. */
+/**
+ * Telegram settings shared by a business's chats: the pending link code, the low stock threshold and the summary hour.
+ * The chats themselves are in business_telegram_chats; chatId, chatTitle, messageThreadId, the alert switches and
+ * summarySentOn are what a business had before it could connect several chats, read once by TelegramChatMigration.
+ */
 @Entity
 @Table(
         name = "business_telegram_settings",
@@ -31,7 +35,7 @@ public class TelegramSettings {
     @Column(name = "business_id")
     private Long businessId;
 
-    /** Private chat or group that receives the alerts; null while not connected. */
+    /** The single chat of before; moved to business_telegram_chats on start. */
     @Column(name = "chat_id")
     private Long chatId;
 

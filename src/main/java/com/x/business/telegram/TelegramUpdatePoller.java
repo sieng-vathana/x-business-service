@@ -82,18 +82,18 @@ public class TelegramUpdatePoller {
         if (!text.startsWith("/")) {
             return;
         }
-        long chatId = message.path("chat").path("id").asLong();
-        // In a group with topics, a command from a topic carries its thread; the General topic has none.
-        Long threadId = message.path("is_topic_message").asBoolean(false) ? message.path("message_thread_id").asLong() : null;
+        TelegramService.ChatPlace place = place(message);
+        long chatId = place.chatId();
+        Long threadId = place.threadId();
         String[] parts = text.split("\\s+", 2);
         // Groups send commands as /start@BotName.
         String command = parts[0].toLowerCase(Locale.ROOT).replaceFirst("@.*$", "");
         if ("/start".equals(command)) {
             telegramService.deliver(chatId, threadId, parts.length > 1
-                    ? connect(parts[1].trim(), chatId, threadId, chatTitle(message.path("chat")))
+                    ? connect(parts[1].trim(), place)
                     : HOW_TO_CONNECT);
         } else if ("/here".equals(command)) {
-            List<String> businesses = telegramService.useTopic(chatId, threadId);
+            List<String> businesses = telegramService.useTopic(place);
             telegramService.deliver(chatId, threadId, businesses.isEmpty()
                     ? HOW_TO_CONNECT
                     : "✅ TinhLok alerts for " + String.join(", ", businesses) + " will arrive "
@@ -105,8 +105,25 @@ public class TelegramUpdatePoller {
         }
     }
 
-    private String connect(String code, long chatId, Long threadId, String chatTitle) {
-        return telegramService.linkChat(code, chatId, threadId, chatTitle)
+    /**
+     * The chat and topic a message came from. In a group with topics, a message in a topic carries its thread
+     * and replies to the topic's first message, which holds the topic name; the General topic has no thread.
+     */
+    static TelegramService.ChatPlace place(JsonNode message) {
+        JsonNode chat = message.path("chat");
+        boolean inTopic = message.path("is_topic_message").asBoolean(false);
+        Long threadId = inTopic ? message.path("message_thread_id").asLong() : null;
+        String topicTitle = null;
+        if (inTopic) {
+            topicTitle = message.path("reply_to_message").path("forum_topic_created").path("name").asText(null);
+        } else if (chat.path("is_forum").asBoolean(false)) {
+            topicTitle = "General";
+        }
+        return new TelegramService.ChatPlace(chat.path("id").asLong(), threadId, chatTitle(chat), chat.path("type").asText(null), topicTitle);
+    }
+
+    private String connect(String code, TelegramService.ChatPlace place) {
+        return telegramService.linkChat(code, place)
                 .map(businessName -> "✅ TinhLok alerts are on for " + businessName + ".\n"
                         + "This chat will get KHQR payments, online orders, low stock and a daily summary. "
                         + "Choose them in Settings → Telegram alerts. In a group with topics, send /here in the topic "

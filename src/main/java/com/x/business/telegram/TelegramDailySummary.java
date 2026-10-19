@@ -1,8 +1,10 @@
 package com.x.business.telegram;
 
 import com.x.business.entity.Business;
+import com.x.business.entity.TelegramChat;
 import com.x.business.entity.TelegramSettings;
 import com.x.business.repository.BusinessRepository;
+import com.x.business.repository.TelegramChatRepository;
 import com.x.business.repository.TelegramSettingsRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -28,7 +30,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/** Sends each connected business the day's sales once its summary hour has passed in its time zone. */
+/** Sends each chat the day's sales of its stores once the business's summary hour has passed in its time zone. */
 @Component
 @RequiredArgsConstructor
 public class TelegramDailySummary {
@@ -38,6 +40,7 @@ public class TelegramDailySummary {
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("EEE d MMM yyyy", Locale.ENGLISH);
 
     private final TelegramSettingsRepository settingsRepository;
+    private final TelegramChatRepository chatRepository;
     private final BusinessRepository businessRepository;
     private final SalesReportClient salesReportClient;
     private final TelegramService telegramService;
@@ -49,39 +52,45 @@ public class TelegramDailySummary {
             return;
         }
         Instant now = Instant.now();
-        for (TelegramSettings settings : settingsRepository.findAllByChatIdIsNotNullAndDailySummaryTrue()) {
+        for (TelegramChat chat : chatRepository.findAllByDailySummaryTrue()) {
             try {
-                sendIfDue(settings, now);
+                sendIfDue(chat, now);
             } catch (RuntimeException exception) {
-                log.warn("Daily summary for business {} failed: {}", settings.getBusinessId(), exception.getMessage());
+                log.warn("Daily summary for business {} chat {} failed: {}", chat.getBusinessId(), chat.getId(), exception.getMessage());
             }
         }
     }
 
-    void sendIfDue(TelegramSettings settings, Instant now) {
-        Business business = businessRepository.findById(settings.getBusinessId()).orElse(null);
+    void sendIfDue(TelegramChat chat, Instant now) {
+        Business business = businessRepository.findById(chat.getBusinessId()).orElse(null);
         if (business == null) {
             return;
         }
+        int summaryHour = settingsRepository.findById(business.getId()).map(TelegramSettings::getDailySummaryHour).orElse(21);
         ZoneId zone = zoneOf(business);
         ZonedDateTime localNow = now.atZone(zone);
         LocalDate today = localNow.toLocalDate();
-        if (localNow.getHour() < settings.getDailySummaryHour() || today.equals(settings.getSummarySentOn())) {
+        if (localNow.getHour() < summaryHour || today.equals(chat.getSummarySentOn())) {
             return;
         }
         // Payments are stored in the server's local time, so the business's day is converted to it.
         LocalDateTime from = today.atStartOfDay(zone).withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
         LocalDateTime to = localNow.withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
-        if (telegramService.deliver(settings.getChatId(), settings.getMessageThreadId(), summaryText(business, today, from, to))) {
-            settingsRepository.markSummarySent(business.getId(), today);
+        String text = summaryText(business, chat.storeIdList(), today, from, to);
+        if (telegramService.deliver(chat.getChatId(), chat.getMessageThreadId(), text)) {
+            chatRepository.markSummarySent(chat.getId(), today);
         }
     }
 
-    String summaryText(Business business, LocalDate day, LocalDateTime from, LocalDateTime to) {
+    /** The day's sales of the given stores, or of every store when stores is null. */
+    String summaryText(Business business, List<Long> stores, LocalDate day, LocalDateTime from, LocalDateTime to) {
         StringBuilder text = new StringBuilder("📊 Daily summary · ").append(business.getName())
                 .append('\n').append(DAY.format(day)).append('\n');
         Map<String, BigDecimal> netByCurrency = new LinkedHashMap<>();
         for (SalesReportClient.StoreName store : salesReportClient.stores(business.getId())) {
+            if (stores != null && !stores.contains(store.id())) {
+                continue;
+            }
             List<String> lines = new ArrayList<>();
             for (String currency : currencies(business)) {
                 List<SalesReportClient.PaymentTotal> totals = salesReportClient.paymentTotals(store.id(), currency, from, to);

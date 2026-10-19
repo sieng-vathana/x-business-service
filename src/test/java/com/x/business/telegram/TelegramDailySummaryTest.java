@@ -1,8 +1,9 @@
 package com.x.business.telegram;
 
 import com.x.business.entity.Business;
-import com.x.business.entity.TelegramSettings;
+import com.x.business.entity.TelegramChat;
 import com.x.business.repository.BusinessRepository;
+import com.x.business.repository.TelegramChatRepository;
 import com.x.business.repository.TelegramSettingsRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,7 @@ import static org.mockito.Mockito.when;
 
 class TelegramDailySummaryTest {
 
-    private TelegramSettingsRepository settingsRepository;
+    private TelegramChatRepository chatRepository;
     private SalesReportClient salesReportClient;
     private TelegramService telegramService;
     private TelegramDailySummary summary;
@@ -35,13 +36,14 @@ class TelegramDailySummaryTest {
 
     @BeforeEach
     void setUp() {
-        settingsRepository = mock(TelegramSettingsRepository.class);
+        chatRepository = mock(TelegramChatRepository.class);
         BusinessRepository businessRepository = mock(BusinessRepository.class);
         salesReportClient = mock(SalesReportClient.class);
         telegramService = mock(TelegramService.class);
         when(businessRepository.findById(2L)).thenReturn(Optional.of(business));
         summary = new TelegramDailySummary(
-                settingsRepository, businessRepository, salesReportClient, telegramService, mock(TelegramClient.class));
+                mock(TelegramSettingsRepository.class), chatRepository, businessRepository, salesReportClient, telegramService,
+                mock(TelegramClient.class));
     }
 
     @Test
@@ -53,7 +55,7 @@ class TelegramDailySummaryTest {
         when(salesReportClient.paymentTotals(eq(2L), eq("KHR"), any(), any())).thenReturn(List.of(
                 new SalesReportClient.PaymentTotal("CASH", "NONE", 2, new BigDecimal("41000"), BigDecimal.ZERO)));
 
-        String text = summary.summaryText(business, LocalDate.of(2026, 10, 18), LocalDateTime.now(), LocalDateTime.now());
+        String text = summary.summaryText(business, null, LocalDate.of(2026, 10, 18), LocalDateTime.now(), LocalDateTime.now());
 
         assertEquals("""
                 📊 Daily summary · Sota
@@ -73,24 +75,45 @@ class TelegramDailySummaryTest {
     void daysWithoutPaymentsSayNoSales() {
         when(salesReportClient.stores(2L)).thenReturn(List.of(new SalesReportClient.StoreName(2L, "Shopify")));
 
-        String text = summary.summaryText(business, LocalDate.of(2026, 10, 18), LocalDateTime.now(), LocalDateTime.now());
+        String text = summary.summaryText(business, null, LocalDate.of(2026, 10, 18), LocalDateTime.now(), LocalDateTime.now());
 
         assertEquals("📊 Daily summary · Sota\nSun 18 Oct 2026\n\nNo sales today.", text);
     }
 
     @Test
     void sendsOnceAfterTheSummaryHourInTheBusinessTimeZone() {
-        TelegramSettings settings = TelegramSettings.builder().businessId(2L).chatId(55L).dailySummaryHour(21).build();
+        TelegramChat chat = TelegramChat.builder().id(9L).businessId(2L).chatId(55L).build();
         when(telegramService.deliver(eq(55L), any(), anyString())).thenReturn(true);
 
-        summary.sendIfDue(settings, Instant.parse("2026-10-18T13:59:00Z"));   // 20:59 in Phnom Penh
+        summary.sendIfDue(chat, Instant.parse("2026-10-18T13:59:00Z"));   // 20:59 in Phnom Penh
         verify(telegramService, never()).deliver(anyLong(), any(), anyString());
 
-        summary.sendIfDue(settings, Instant.parse("2026-10-18T14:00:00Z"));   // 21:00 in Phnom Penh
-        verify(settingsRepository).markSummarySent(2L, LocalDate.of(2026, 10, 18));
+        summary.sendIfDue(chat, Instant.parse("2026-10-18T14:00:00Z"));   // 21:00 in Phnom Penh
+        verify(chatRepository).markSummarySent(9L, LocalDate.of(2026, 10, 18));
 
-        settings.setSummarySentOn(LocalDate.of(2026, 10, 18));
-        summary.sendIfDue(settings, Instant.parse("2026-10-18T15:00:00Z"));
+        chat.setSummarySentOn(LocalDate.of(2026, 10, 18));
+        summary.sendIfDue(chat, Instant.parse("2026-10-18T15:00:00Z"));
         verify(telegramService).deliver(eq(55L), any(), anyString());
+    }
+
+    @Test
+    void aChatForSomeStoresGetsOnlyThoseStores() {
+        when(salesReportClient.stores(2L)).thenReturn(List.of(
+                new SalesReportClient.StoreName(2L, "Shopify"), new SalesReportClient.StoreName(3L, "Riverside")));
+        when(salesReportClient.paymentTotals(eq(3L), eq("USD"), any(), any())).thenReturn(List.of(
+                new SalesReportClient.PaymentTotal("CASH", "NONE", 1, new BigDecimal("4.00"), BigDecimal.ZERO)));
+
+        String text = summary.summaryText(business, List.of(3L), LocalDate.of(2026, 10, 18), LocalDateTime.now(), LocalDateTime.now());
+
+        assertEquals("""
+                📊 Daily summary · Sota
+                Sun 18 Oct 2026
+
+                Riverside
+                • Sales: $4.00 from 1 payment
+                • Cash $4.00
+
+                Total after refunds: $4.00""", text);
+        verify(salesReportClient, never()).paymentTotals(eq(2L), any(), any(), any());
     }
 }

@@ -37,10 +37,10 @@ class TelegramUpdatePollerTest {
         when(telegramService.linkChat("CODE123", new TelegramService.ChatPlace(-100777L, null, "Sota staff", "group", null))).thenReturn(Optional.of("Sota"));
 
         poller.handle(update("""
-                {"update_id":1,"message":{"text":"/start@TinhLokAlertsBot CODE123","chat":{"id":-100777,"title":"Sota staff","type":"group"}}}
+                {"update_id":1,"message":{"text":"/start@TinhLukAlertsBot CODE123","chat":{"id":-100777,"title":"Sota staff","type":"group"}}}
                 """));
 
-        verify(telegramService).deliver(eq(-100777L), isNull(), contains("TinhLok alerts are on for Sota"));
+        verify(telegramService).deliver(eq(-100777L), isNull(), contains("TinhLuk alerts are on for Sota"));
     }
 
     @Test
@@ -74,7 +74,7 @@ class TelegramUpdatePollerTest {
         when(telegramService.useTopic(any())).thenReturn(List.of("Sota"));
 
         poller.handle(update("""
-                {"update_id":6,"message":{"text":"/here@TinhLokAlertsBot","message_thread_id":42,"is_topic_message":true,
+                {"update_id":6,"message":{"text":"/here@TinhLukAlertsBot","message_thread_id":42,"is_topic_message":true,
                  "reply_to_message":{"message_id":42,"forum_topic_created":{"name":"Shop alerts"}},
                  "chat":{"id":-100777,"title":"Sota staff","type":"supergroup","is_forum":true}}}
                 """));
@@ -88,11 +88,11 @@ class TelegramUpdatePollerTest {
         when(telegramService.linkChat("CODE123", new TelegramService.ChatPlace(-100777L, 42L, "Sota staff", "supergroup", null))).thenReturn(Optional.of("Sota"));
 
         poller.handle(update("""
-                {"update_id":7,"message":{"text":"/start@TinhLokAlertsBot CODE123","message_thread_id":42,"is_topic_message":true,
+                {"update_id":7,"message":{"text":"/start@TinhLukAlertsBot CODE123","message_thread_id":42,"is_topic_message":true,
                  "chat":{"id":-100777,"title":"Sota staff","type":"supergroup","is_forum":true}}}
                 """));
 
-        verify(telegramService).deliver(eq(-100777L), eq(42L), contains("TinhLok alerts are on for Sota"));
+        verify(telegramService).deliver(eq(-100777L), eq(42L), contains("TinhLuk alerts are on for Sota"));
     }
 
     @Test

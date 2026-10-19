@@ -28,7 +28,7 @@ public class TelegramUpdatePoller {
     private static final Duration RETRY_AFTER_ERROR = Duration.ofSeconds(30);
     private static final Logger log = LoggerFactory.getLogger(TelegramUpdatePoller.class);
     private static final String HOW_TO_CONNECT =
-            "To get alerts here, open Settings → Telegram alerts in the TinhLok Merchant Portal and tap Connect Telegram.";
+            "To get alerts here, open Settings → Telegram alerts in the TinhLuk Merchant Portal and tap Connect Telegram.";
 
     private final TelegramProperties properties;
     private final TelegramClient telegramClient;
@@ -36,8 +36,8 @@ public class TelegramUpdatePoller {
     private static final Map<String, String> COMMANDS = new LinkedHashMap<>();
 
     static {
-        COMMANDS.put("here", "Send TinhLok alerts to this topic");
-        COMMANDS.put("stop", "Turn off TinhLok alerts for this chat");
+        COMMANDS.put("here", "Send TinhLuk alerts to this topic");
+        COMMANDS.put("stop", "Turn off TinhLuk alerts for this chat");
     }
 
     private long offset;
@@ -96,12 +96,12 @@ public class TelegramUpdatePoller {
             List<String> businesses = telegramService.useTopic(place);
             telegramService.deliver(chatId, threadId, businesses.isEmpty()
                     ? HOW_TO_CONNECT
-                    : "✅ TinhLok alerts for " + String.join(", ", businesses) + " will arrive "
+                    : "✅ TinhLuk alerts for " + String.join(", ", businesses) + " will arrive "
                             + (threadId == null ? "in this chat." : "in this topic."));
         } else if ("/stop".equals(command)) {
             telegramService.deliver(chatId, threadId, telegramService.forgetChat(chatId) > 0
-                    ? "TinhLok alerts are turned off for this chat."
-                    : "This chat does not receive TinhLok alerts.");
+                    ? "TinhLuk alerts are turned off for this chat."
+                    : "This chat does not receive TinhLuk alerts.");
         }
     }
 
@@ -124,11 +124,11 @@ public class TelegramUpdatePoller {
 
     private String connect(String code, TelegramService.ChatPlace place) {
         return telegramService.linkChat(code, place)
-                .map(businessName -> "✅ TinhLok alerts are on for " + businessName + ".\n"
+                .map(businessName -> "✅ TinhLuk alerts are on for " + businessName + ".\n"
                         + "This chat will get KHQR payments, online orders, low stock and a daily summary. "
                         + "Choose them in Settings → Telegram alerts. In a group with topics, send /here in the topic "
                         + "that should get them. Send /stop to turn them off.")
-                .orElse("This link has expired. In TinhLok, open Settings → Telegram alerts and tap Connect Telegram again.");
+                .orElse("This link has expired. In TinhLuk, open Settings → Telegram alerts and tap Connect Telegram again.");
     }
 
     /** Shows the bot's commands in Telegram's menu; tried until it works once. */

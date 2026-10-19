@@ -46,7 +46,7 @@ class TelegramServiceTest {
         BusinessRepository businessRepository = mock(BusinessRepository.class);
         telegramClient = mock(TelegramClient.class);
         when(telegramClient.isConfigured()).thenReturn(true);
-        when(telegramClient.botUsername()).thenReturn("TinhLokAlertsBot");
+        when(telegramClient.botUsername()).thenReturn("TinhLukAlertsBot");
         when(businessRepository.findById(2L)).thenReturn(Optional.of(Business.builder().id(2L).name("Sota").build()));
         when(settingsRepository.save(any(TelegramSettings.class))).thenAnswer(invocation -> invocation.getArgument(0));
         // The chat repository behaves like a small table kept in `chats`.
@@ -73,7 +73,7 @@ class TelegramServiceTest {
 
         var link = service.createLink(2L);
         when(settingsRepository.findByLinkCode(settings.getLinkCode())).thenReturn(Optional.of(settings));
-        assertEquals("https://t.me/TinhLokAlertsBot?startgroup=" + settings.getLinkCode(), link.groupChatUrl());
+        assertEquals("https://t.me/TinhLukAlertsBot?startgroup=" + settings.getLinkCode(), link.groupChatUrl());
         assertEquals(Optional.of("Sota"), service.linkChat(settings.getLinkCode(),
                 new TelegramService.ChatPlace(-100777L, null, "Sota staff", "supergroup", "General")));
         assertNull(settings.getLinkCode());
@@ -148,7 +148,7 @@ class TelegramServiceTest {
 
         assertEquals(1, status.chats().size());
         assertEquals(55L, chats.get(0).getChatId());
-        verify(telegramClient).sendMessage(-100777L, null, "TinhLok alerts for Sota are turned off here.");
+        verify(telegramClient).sendMessage(-100777L, null, "TinhLuk alerts for Sota are turned off here.");
     }
 
     @Test

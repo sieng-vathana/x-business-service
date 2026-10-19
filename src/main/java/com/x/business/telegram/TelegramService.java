@@ -118,7 +118,7 @@ public class TelegramService {
         String businessName = requireBusiness(businessId).getName();
         TelegramChat chat = requireChat(businessId, chatRowId);
         chatRepository.delete(chat);
-        deliver(chat.getChatId(), chat.getMessageThreadId(), "TinhLok alerts for " + businessName + " are turned off here.");
+        deliver(chat.getChatId(), chat.getMessageThreadId(), "TinhLuk alerts for " + businessName + " are turned off here.");
         return status(businessId);
     }
 
@@ -132,7 +132,7 @@ public class TelegramService {
         settingsRepository.save(settings);
         List<TelegramChat> chats = chatRepository.findAllByBusinessIdOrderByIdAsc(businessId);
         chatRepository.deleteAll(chats);
-        chats.forEach(chat -> deliver(chat.getChatId(), chat.getMessageThreadId(), "TinhLok alerts for " + businessName + " are turned off here."));
+        chats.forEach(chat -> deliver(chat.getChatId(), chat.getMessageThreadId(), "TinhLuk alerts for " + businessName + " are turned off here."));
         return toStatus(settings, List.of());
     }
 
@@ -155,7 +155,7 @@ public class TelegramService {
     private void sendTest(TelegramChat chat, String businessName) {
         try {
             telegramClient.sendMessage(chat.getChatId(), chat.getMessageThreadId(),
-                    "✅ Test alert from TinhLok for " + businessName + ". Alerts will arrive here.");
+                    "✅ Test alert from TinhLuk for " + businessName + ". Alerts will arrive here.");
         } catch (TelegramClient.TelegramException exception) {
             if (exception.chatGone()) {
                 forgetChat(chat.getChatId());

@@ -32,7 +32,7 @@ x:
     bot-token: ${TELEGRAM_BOT_TOKEN:}
     polling-enabled: ${TELEGRAM_POLLING_ENABLED:true}
   exchange-rate:
-    frankfurter-url: ${FRANKFURTER_LATEST_URL:https://api.frankfurter.dev/v1/latest}
+    frankfurter-rate-url: ${FRANKFURTER_RATE_URL:https://api.frankfurter.dev/v2/rate/usd/khr}
     refresh-cron: ${EXCHANGE_RATE_REFRESH_CRON:0 15 6 * * *}
   redis:
     enabled: ${X_REDIS_ENABLED:true}

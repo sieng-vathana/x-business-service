@@ -24,7 +24,6 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Map;
 
 /** Fetches an external reference for display; merchant-approved rates remain separately stored. */
 @Service
@@ -42,13 +41,13 @@ public class ExchangeRateReferenceService {
     public ExchangeRateReferenceService(
             ExchangeRateReferenceRepository repository,
             RestClient.Builder builder,
-            @Value("${x.exchange-rate.frankfurter-url:https://api.frankfurter.dev/v1/latest}") String latestRateUrl) {
+            @Value("${x.exchange-rate.frankfurter-rate-url}") String latestRateUrl) {
         this.repository = repository;
         HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(4)).build();
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
         requestFactory.setReadTimeout(Duration.ofSeconds(6));
         this.client = builder.clone().requestFactory(requestFactory).build();
-        this.latestRateUri = URI.create(latestRateUrl + "?base=USD&symbols=KHR");
+        this.latestRateUri = URI.create(latestRateUrl);
     }
 
     /** Refreshes promptly when the service first starts, without making startup depend on the provider. */
@@ -94,12 +93,14 @@ public class ExchangeRateReferenceService {
     }
 
     private ExchangeRateReferenceResponse refresh() {
-        FrankfurterResponse response = client.get()
+        FrankfurterRateResponse response = client.get()
                 .uri(latestRateUri)
                 .retrieve()
-                .body(FrankfurterResponse.class);
-        BigDecimal rate = response == null || response.rates() == null ? null : response.rates().get("KHR");
-        if (rate == null || rate.signum() <= 0 || response.date() == null) {
+                .body(FrankfurterRateResponse.class);
+        BigDecimal rate = response == null ? null : response.rate();
+        if (rate == null || rate.signum() <= 0 || response.date() == null
+                || !"USD".equalsIgnoreCase(response.base())
+                || !"KHR".equalsIgnoreCase(response.quote())) {
             throw new IllegalArgumentException("Frankfurter returned an invalid USD/KHR reference");
         }
         try {
@@ -134,6 +135,6 @@ public class ExchangeRateReferenceService {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record FrankfurterResponse(LocalDate date, Map<String, BigDecimal> rates) {
+    private record FrankfurterRateResponse(LocalDate date, String base, String quote, BigDecimal rate) {
     }
 }

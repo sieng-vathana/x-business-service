@@ -2,8 +2,10 @@ package com.x.business.controller;
 
 import com.x.business.dto.BusinessResponse;
 import com.x.business.dto.CreateBusinessRequest;
+import com.x.business.dto.ExchangeRateReferenceResponse;
 import com.x.business.dto.UpdateBusinessRequest;
 import com.x.business.service.BusinessService;
+import com.x.business.service.ExchangeRateReferenceService;
 import com.sharedlib.response.ApiResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -28,6 +30,7 @@ import java.util.List;
 public class BusinessController {
 
     private final BusinessService businessService;
+    private final ExchangeRateReferenceService exchangeRateReferenceService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<BusinessResponse>> create(@Valid @RequestBody CreateBusinessRequest request) {
@@ -52,6 +55,22 @@ public class BusinessController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<BusinessResponse>> getById(@PathVariable @Positive Long id) {
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), businessService.getById(id)));
+    }
+
+    @GetMapping("/{id}/exchange-rate-reference")
+    public ResponseEntity<ApiResponse<ExchangeRateReferenceResponse>> getExchangeRateReference(
+            @PathVariable @Positive Long id) {
+        businessService.getById(id);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(),
+                exchangeRateReferenceService.latestStored()));
+    }
+
+    @PostMapping("/{id}/exchange-rate-reference/refresh")
+    public ResponseEntity<ApiResponse<ExchangeRateReferenceResponse>> refreshExchangeRateReference(
+            @PathVariable @Positive Long id) {
+        businessService.getById(id);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(),
+                exchangeRateReferenceService.refreshLatest()));
     }
 
     @GetMapping

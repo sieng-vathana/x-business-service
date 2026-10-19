@@ -31,6 +31,9 @@ x:
     # Bot from @BotFather that sends merchant alerts; alerts stay off while it is empty.
     bot-token: ${TELEGRAM_BOT_TOKEN:}
     polling-enabled: ${TELEGRAM_POLLING_ENABLED:true}
+  exchange-rate:
+    frankfurter-url: ${FRANKFURTER_LATEST_URL:https://api.frankfurter.dev/v1/latest}
+    refresh-cron: ${EXCHANGE_RATE_REFRESH_CRON:0 15 6 * * *}
   redis:
     enabled: ${X_REDIS_ENABLED:true}
     key-prefix: x

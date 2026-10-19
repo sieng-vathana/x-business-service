@@ -38,6 +38,10 @@ public class TelegramSettings {
     @Column(name = "chat_title", length = 255)
     private String chatTitle;
 
+    /** Topic of a group with topics that receives the alerts; null for the chat itself or a group's General topic. */
+    @Column(name = "message_thread_id")
+    private Long messageThreadId;
+
     /** One-time code in the t.me start link, valid until linkCodeExpiresAt. */
     @Column(name = "link_code", length = 32)
     private String linkCode;

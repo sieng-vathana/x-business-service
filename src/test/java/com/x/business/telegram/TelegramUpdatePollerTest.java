@@ -6,12 +6,15 @@ import com.x.business.config.TelegramProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -31,24 +34,24 @@ class TelegramUpdatePollerTest {
 
     @Test
     void groupStartWithCodeConnectsTheGroup() throws Exception {
-        when(telegramService.linkChat("CODE123", -100777L, "Sota staff")).thenReturn(Optional.of("Sota"));
+        when(telegramService.linkChat("CODE123", -100777L, null, "Sota staff")).thenReturn(Optional.of("Sota"));
 
         poller.handle(update("""
                 {"update_id":1,"message":{"text":"/start@TinhLokAlertsBot CODE123","chat":{"id":-100777,"title":"Sota staff","type":"group"}}}
                 """));
 
-        verify(telegramService).deliver(eq(-100777L), contains("TinhLok alerts are on for Sota"));
+        verify(telegramService).deliver(eq(-100777L), isNull(), contains("TinhLok alerts are on for Sota"));
     }
 
     @Test
     void expiredCodeExplainsHowToReconnect() throws Exception {
-        when(telegramService.linkChat("OLD", 55L, "Vathana Sieng")).thenReturn(Optional.empty());
+        when(telegramService.linkChat("OLD", 55L, null, "Vathana Sieng")).thenReturn(Optional.empty());
 
         poller.handle(update("""
                 {"update_id":2,"message":{"text":"/start OLD","chat":{"id":55,"first_name":"Vathana","last_name":"Sieng","type":"private"}}}
                 """));
 
-        verify(telegramService).deliver(eq(55L), contains("This link has expired"));
+        verify(telegramService).deliver(eq(55L), isNull(), contains("This link has expired"));
     }
 
     @Test
@@ -62,8 +65,44 @@ class TelegramUpdatePollerTest {
                 {"update_id":4,"my_chat_member":{"chat":{"id":-100777},"new_chat_member":{"status":"kicked"}}}
                 """));
 
-        verify(telegramService).deliver(eq(55L), contains("turned off"));
+        verify(telegramService).deliver(eq(55L), isNull(), contains("turned off"));
         verify(telegramService).forgetChat(-100777L);
+    }
+
+    @Test
+    void hereInATopicSendsTheAlertsToThatTopic() throws Exception {
+        when(telegramService.useTopic(-100777L, 42L)).thenReturn(List.of("Sota"));
+
+        poller.handle(update("""
+                {"update_id":6,"message":{"text":"/here@TinhLokAlertsBot","message_thread_id":42,"is_topic_message":true,
+                 "chat":{"id":-100777,"title":"Sota staff","type":"supergroup","is_forum":true}}}
+                """));
+
+        verify(telegramService).useTopic(-100777L, 42L);
+        verify(telegramService).deliver(eq(-100777L), eq(42L), contains("will arrive in this topic"));
+    }
+
+    @Test
+    void startFromATopicConnectsThatTopic() throws Exception {
+        when(telegramService.linkChat("CODE123", -100777L, 42L, "Sota staff")).thenReturn(Optional.of("Sota"));
+
+        poller.handle(update("""
+                {"update_id":7,"message":{"text":"/start@TinhLokAlertsBot CODE123","message_thread_id":42,"is_topic_message":true,
+                 "chat":{"id":-100777,"title":"Sota staff","type":"supergroup","is_forum":true}}}
+                """));
+
+        verify(telegramService).deliver(eq(-100777L), eq(42L), contains("TinhLok alerts are on for Sota"));
+    }
+
+    @Test
+    void hereInAChatThatIsNotConnectedExplainsHowToConnect() throws Exception {
+        when(telegramService.useTopic(55L, null)).thenReturn(List.of());
+
+        poller.handle(update("""
+                {"update_id":8,"message":{"text":"/here","chat":{"id":55,"type":"private"}}}
+                """));
+
+        verify(telegramService).deliver(eq(55L), isNull(), contains("Connect Telegram"));
     }
 
     @Test
@@ -72,7 +111,7 @@ class TelegramUpdatePollerTest {
                 {"update_id":5,"message":{"text":"hello","chat":{"id":55,"type":"private"}}}
                 """));
 
-        verify(telegramService, never()).deliver(anyLong(), anyString());
+        verify(telegramService, never()).deliver(anyLong(), any(), anyString());
     }
 
     private JsonNode update(String json) throws Exception {

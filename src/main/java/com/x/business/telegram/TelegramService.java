@@ -31,6 +31,7 @@ public class TelegramService {
     private static final String CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
     private static final int CODE_LENGTH = 24;
     private static final SecureRandom RANDOM = new SecureRandom();
+    static final String TOPIC_UNAVAILABLE = "The Telegram topic for alerts is closed. In the group, open the topic that should get alerts and send /here.";
 
     private final TelegramSettingsRepository settingsRepository;
     private final BusinessRepository businessRepository;
@@ -94,28 +95,35 @@ public class TelegramService {
         String businessName = requireBusiness(businessId).getName();
         TelegramSettings settings = settingsFor(businessId);
         Long chatId = settings.getChatId();
+        Long threadId = settings.getMessageThreadId();
         settings.setChatId(null);
         settings.setChatTitle(null);
+        settings.setMessageThreadId(null);
         settings.setLinkCode(null);
         settings.setLinkCodeExpiresAt(null);
         TelegramSettings saved = settingsRepository.save(settings);
         if (chatId != null) {
-            deliver(chatId, "TinhLok alerts for " + businessName + " are turned off for this chat.");
+            deliver(chatId, threadId, "TinhLok alerts for " + businessName + " are turned off for this chat.");
         }
         return toStatus(saved);
     }
 
     public void sendTest(Long businessId) {
         String businessName = requireBusiness(businessId).getName();
-        Long chatId = settingsRepository.findById(businessId).map(TelegramSettings::getChatId).orElse(null);
-        if (chatId == null) {
+        TelegramSettings settings = settingsRepository.findById(businessId).orElse(null);
+        if (settings == null || settings.getChatId() == null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Connect a Telegram chat first");
         }
+        long chatId = settings.getChatId();
         try {
-            telegramClient.sendMessage(chatId, "✅ Test alert from TinhLok for " + businessName + ". Alerts will arrive in this chat.");
+            telegramClient.sendMessage(chatId, settings.getMessageThreadId(),
+                    "✅ Test alert from TinhLok for " + businessName + ". Alerts will arrive here.");
         } catch (TelegramClient.TelegramException exception) {
             if (exception.chatGone()) {
                 forgetChat(chatId);
+            }
+            if (exception.topicUnavailable()) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, TOPIC_UNAVAILABLE);
             }
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Telegram did not accept the message: " + exception.getMessage());
         }
@@ -130,12 +138,15 @@ public class TelegramService {
         if (settings == null || settings.getChatId() == null || !wants(settings, type)) {
             return false;
         }
-        return deliver(settings.getChatId(), text);
+        return deliver(settings.getChatId(), settings.getMessageThreadId(), text);
     }
 
-    /** Connects the chat whose /start carried this code; returns the business name, or empty if the code is unknown or expired. */
+    /**
+     * Connects the chat whose /start carried this code, in the topic it was sent from if the group has topics;
+     * returns the business name, or empty if the code is unknown or expired.
+     */
     @Transactional
-    public Optional<String> linkChat(String code, long chatId, String chatTitle) {
+    public Optional<String> linkChat(String code, long chatId, Long threadId, String chatTitle) {
         TelegramSettings settings = settingsRepository.findByLinkCode(code).orElse(null);
         if (settings == null
                 || settings.getLinkCodeExpiresAt() == null
@@ -143,11 +154,26 @@ public class TelegramService {
             return Optional.empty();
         }
         settings.setChatId(chatId);
+        settings.setMessageThreadId(threadId);
         settings.setChatTitle(chatTitle == null || chatTitle.length() <= 255 ? chatTitle : chatTitle.substring(0, 255));
         settings.setLinkCode(null);
         settings.setLinkCodeExpiresAt(null);
         settingsRepository.save(settings);
         return businessRepository.findById(settings.getBusinessId()).map(Business::getName);
+    }
+
+    /**
+     * Sends this chat's alerts to the topic /here was sent from, or to the main chat for the General topic;
+     * returns the names of the businesses that use the chat.
+     */
+    @Transactional
+    public List<String> useTopic(long chatId, Long threadId) {
+        List<TelegramSettings> linked = settingsRepository.findAllByChatId(chatId);
+        linked.forEach(settings -> settings.setMessageThreadId(threadId));
+        settingsRepository.saveAll(linked);
+        return linked.stream()
+                .map(settings -> businessRepository.findById(settings.getBusinessId()).map(Business::getName).orElse("your business"))
+                .toList();
     }
 
     /** Stops alerts to a chat that sent /stop or removed the bot; returns how many businesses used it. */
@@ -157,18 +183,23 @@ public class TelegramService {
         for (TelegramSettings settings : linked) {
             settings.setChatId(null);
             settings.setChatTitle(null);
+            settings.setMessageThreadId(null);
         }
         settingsRepository.saveAll(linked);
         return linked.size();
     }
 
-    /** Sends a message; a chat that blocked or removed the bot is disconnected. */
     boolean deliver(long chatId, String text) {
+        return deliver(chatId, null, text);
+    }
+
+    /** Sends a message, to a topic when threadId is set; a chat that blocked or removed the bot is disconnected. */
+    boolean deliver(long chatId, Long threadId, String text) {
         try {
-            telegramClient.sendMessage(chatId, text);
+            telegramClient.sendMessage(chatId, threadId, text);
             return true;
         } catch (TelegramClient.TelegramException exception) {
-            log.warn("Telegram message to chat {} failed: {}", chatId, exception.getMessage());
+            log.warn("Telegram message to chat {} topic {} failed: {}", chatId, threadId, exception.getMessage());
             if (exception.chatGone()) {
                 forgetChat(chatId);
             }

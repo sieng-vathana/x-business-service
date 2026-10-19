@@ -81,16 +81,16 @@ class TelegramDailySummaryTest {
     @Test
     void sendsOnceAfterTheSummaryHourInTheBusinessTimeZone() {
         TelegramSettings settings = TelegramSettings.builder().businessId(2L).chatId(55L).dailySummaryHour(21).build();
-        when(telegramService.deliver(eq(55L), anyString())).thenReturn(true);
+        when(telegramService.deliver(eq(55L), any(), anyString())).thenReturn(true);
 
         summary.sendIfDue(settings, Instant.parse("2026-10-18T13:59:00Z"));   // 20:59 in Phnom Penh
-        verify(telegramService, never()).deliver(anyLong(), anyString());
+        verify(telegramService, never()).deliver(anyLong(), any(), anyString());
 
         summary.sendIfDue(settings, Instant.parse("2026-10-18T14:00:00Z"));   // 21:00 in Phnom Penh
         verify(settingsRepository).markSummarySent(2L, LocalDate.of(2026, 10, 18));
 
         settings.setSummarySentOn(LocalDate.of(2026, 10, 18));
         summary.sendIfDue(settings, Instant.parse("2026-10-18T15:00:00Z"));
-        verify(telegramService).deliver(eq(55L), anyString());
+        verify(telegramService).deliver(eq(55L), any(), anyString());
     }
 }

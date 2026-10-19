@@ -11,6 +11,7 @@ import org.springframework.web.client.RestClientException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -51,7 +52,23 @@ public class TelegramClient {
     }
 
     public void sendMessage(long chatId, String text) {
-        call("sendMessage", Map.of("chat_id", chatId, "text", text, "disable_web_page_preview", true));
+        sendMessage(chatId, null, text);
+    }
+
+    /** Sends to a topic of a group with topics when threadId is set, otherwise to the chat itself. */
+    public void sendMessage(long chatId, Long threadId, String text) {
+        Map<String, Object> body = new HashMap<>(Map.of("chat_id", chatId, "text", text, "disable_web_page_preview", true));
+        if (threadId != null) {
+            body.put("message_thread_id", threadId);
+        }
+        call("sendMessage", body);
+    }
+
+    /** Lists the bot's commands in Telegram's command menu, so /here can be picked inside a topic. */
+    public void setCommands(Map<String, String> commands) {
+        call("setMyCommands", Map.of("commands", commands.entrySet().stream()
+                .map(command -> Map.of("command", command.getKey(), "description", command.getValue()))
+                .toList()));
     }
 
     /** Waits up to timeoutSeconds for messages and chat membership changes after offset. */
@@ -110,6 +127,12 @@ public class TelegramClient {
         public boolean chatGone() {
             String message = getMessage() == null ? "" : getMessage().toLowerCase(Locale.ROOT);
             return errorCode == 403 || (errorCode == 400 && message.contains("chat not found"));
+        }
+
+        /** The group has topics and the one the bot writes to is closed, or no longer exists. */
+        public boolean topicUnavailable() {
+            String message = getMessage() == null ? "" : getMessage().toUpperCase(Locale.ROOT);
+            return message.contains("TOPIC_CLOSED") || message.contains("THREAD NOT FOUND") || message.contains("TOPIC_DELETED");
         }
     }
 }

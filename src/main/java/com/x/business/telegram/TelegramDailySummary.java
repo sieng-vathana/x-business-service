@@ -72,7 +72,7 @@ public class TelegramDailySummary {
         // Payments are stored in the server's local time, so the business's day is converted to it.
         LocalDateTime from = today.atStartOfDay(zone).withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
         LocalDateTime to = localNow.withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
-        if (telegramService.deliver(settings.getChatId(), summaryText(business, today, from, to))) {
+        if (telegramService.deliver(settings.getChatId(), settings.getMessageThreadId(), summaryText(business, today, from, to))) {
             settingsRepository.markSummarySent(business.getId(), today);
         }
     }

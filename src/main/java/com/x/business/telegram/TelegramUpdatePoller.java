@@ -10,7 +10,10 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Reads the bot's updates with long polling: a /start with a link code connects that chat,
@@ -30,14 +33,23 @@ public class TelegramUpdatePoller {
     private final TelegramProperties properties;
     private final TelegramClient telegramClient;
     private final TelegramService telegramService;
+    private static final Map<String, String> COMMANDS = new LinkedHashMap<>();
+
+    static {
+        COMMANDS.put("here", "Send TinhLok alerts to this topic");
+        COMMANDS.put("stop", "Turn off TinhLok alerts for this chat");
+    }
+
     private long offset;
     private Instant pausedUntil = Instant.EPOCH;
+    private boolean commandsRegistered;
 
     @Scheduled(fixedDelay = 1000, initialDelay = 5000)
     public void poll() {
         if (!properties.isConfigured() || !properties.isPollingEnabled() || Instant.now().isBefore(pausedUntil)) {
             return;
         }
+        registerCommands();
         JsonNode updates;
         try {
             updates = telegramClient.getUpdates(offset, LONG_POLL_SECONDS);
@@ -71,26 +83,48 @@ public class TelegramUpdatePoller {
             return;
         }
         long chatId = message.path("chat").path("id").asLong();
+        // In a group with topics, a command from a topic carries its thread; the General topic has none.
+        Long threadId = message.path("is_topic_message").asBoolean(false) ? message.path("message_thread_id").asLong() : null;
         String[] parts = text.split("\\s+", 2);
         // Groups send commands as /start@BotName.
         String command = parts[0].toLowerCase(Locale.ROOT).replaceFirst("@.*$", "");
         if ("/start".equals(command)) {
-            telegramService.deliver(chatId, parts.length > 1
-                    ? connect(parts[1].trim(), chatId, chatTitle(message.path("chat")))
+            telegramService.deliver(chatId, threadId, parts.length > 1
+                    ? connect(parts[1].trim(), chatId, threadId, chatTitle(message.path("chat")))
                     : HOW_TO_CONNECT);
+        } else if ("/here".equals(command)) {
+            List<String> businesses = telegramService.useTopic(chatId, threadId);
+            telegramService.deliver(chatId, threadId, businesses.isEmpty()
+                    ? HOW_TO_CONNECT
+                    : "✅ TinhLok alerts for " + String.join(", ", businesses) + " will arrive "
+                            + (threadId == null ? "in this chat." : "in this topic."));
         } else if ("/stop".equals(command)) {
-            telegramService.deliver(chatId, telegramService.forgetChat(chatId) > 0
+            telegramService.deliver(chatId, threadId, telegramService.forgetChat(chatId) > 0
                     ? "TinhLok alerts are turned off for this chat."
                     : "This chat does not receive TinhLok alerts.");
         }
     }
 
-    private String connect(String code, long chatId, String chatTitle) {
-        return telegramService.linkChat(code, chatId, chatTitle)
+    private String connect(String code, long chatId, Long threadId, String chatTitle) {
+        return telegramService.linkChat(code, chatId, threadId, chatTitle)
                 .map(businessName -> "✅ TinhLok alerts are on for " + businessName + ".\n"
                         + "This chat will get KHQR payments, online orders, low stock and a daily summary. "
-                        + "Choose them in Settings → Telegram alerts. Send /stop to turn them off.")
+                        + "Choose them in Settings → Telegram alerts. In a group with topics, send /here in the topic "
+                        + "that should get them. Send /stop to turn them off.")
                 .orElse("This link has expired. In TinhLok, open Settings → Telegram alerts and tap Connect Telegram again.");
+    }
+
+    /** Shows the bot's commands in Telegram's menu; tried until it works once. */
+    private void registerCommands() {
+        if (commandsRegistered) {
+            return;
+        }
+        try {
+            telegramClient.setCommands(COMMANDS);
+            commandsRegistered = true;
+        } catch (TelegramClient.TelegramException exception) {
+            log.warn("Telegram bot commands could not be registered: {}", exception.getMessage());
+        }
     }
 
     private static String chatTitle(JsonNode chat) {

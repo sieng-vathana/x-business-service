@@ -65,7 +65,8 @@ class TelegramServiceTest {
             }
             return chat;
         });
-        service = new TelegramService(settingsRepository, chatRepository, businessRepository, telegramClient);
+        service = new TelegramService(settingsRepository, chatRepository, businessRepository, telegramClient,
+                org.mockito.Mockito.mock(com.x.business.realtime.RealtimePublisher.class));
     }
 
     @Test

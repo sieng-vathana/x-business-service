@@ -66,7 +66,7 @@ jobs:
         run: |
           sudo k3s kubectl -n x-platform create deployment x-business-service --image=ghcr.io/sieng-vathana/x-business-service:${{ github.sha }} --dry-run=client -o yaml | sudo k3s kubectl apply -f -
           sudo k3s kubectl -n x-platform expose deployment x-business-service --port=8080 --target-port=8080 --dry-run=client -o yaml | sudo k3s kubectl apply -f -
-          sudo k3s kubectl -n x-platform set env deployment/x-business-service SERVER_PORT=8080 SPRING_PROFILES_ACTIVE=production SPRING_DATASOURCE_URL=jdbc:mysql://mysql.x-platform.svc.cluster.local:3306/x_prod SPRING_JPA_HIBERNATE_DDL_AUTO=update REDIS_HOST=redis.x-platform.svc.cluster.local REDIS_PORT=6379 --from=secret/x-app-database
+          sudo k3s kubectl -n x-platform set env deployment/x-business-service SERVER_PORT=8080 SPRING_PROFILES_ACTIVE=production KAFKA_BOOTSTRAP_SERVERS=x-kafka:9092 SPRING_DATASOURCE_URL=jdbc:mysql://mysql.x-platform.svc.cluster.local:3306/x_prod SPRING_JPA_HIBERNATE_DDL_AUTO=update REDIS_HOST=redis.x-platform.svc.cluster.local REDIS_PORT=6379 --from=secret/x-app-database
           # Optional Telegram bot for merchant alerts (secret holds TELEGRAM_BOT_TOKEN).
           if sudo k3s kubectl -n x-platform get secret x-telegram-bot >/dev/null 2>&1; then
             sudo k3s kubectl -n x-platform set env deployment/x-business-service --from=secret/x-telegram-bot

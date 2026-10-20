@@ -11,6 +11,7 @@ import com.x.business.entity.TelegramSettings;
 import com.x.business.repository.BusinessRepository;
 import com.x.business.repository.TelegramChatRepository;
 import com.x.business.repository.TelegramSettingsRepository;
+import com.x.business.realtime.RealtimePublisher;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +44,7 @@ public class TelegramService {
     private final TelegramChatRepository chatRepository;
     private final BusinessRepository businessRepository;
     private final TelegramClient telegramClient;
+    private final RealtimePublisher realtime;
 
     @Transactional(readOnly = true)
     public TelegramStatusResponse status(Long businessId) {
@@ -211,6 +213,8 @@ public class TelegramService {
         settings.setLinkCode(null);
         settings.setLinkCodeExpiresAt(null);
         settingsRepository.save(settings);
+        // The Telegram alerts page that showed the link updates on its own.
+        realtime.toBusiness(businessId, "telegram.chats.changed", java.util.Map.of("linked", true));
         return businessRepository.findById(businessId).map(Business::getName);
     }
 
@@ -243,6 +247,8 @@ public class TelegramService {
     public int forgetChat(long chatId) {
         List<TelegramChat> linked = chatRepository.findAllByChatId(chatId);
         chatRepository.deleteAll(linked);
+        linked.stream().map(TelegramChat::getBusinessId).distinct()
+                .forEach(businessId -> realtime.toBusiness(businessId, "telegram.chats.changed", java.util.Map.of("linked", false)));
         return linked.size();
     }
 

@@ -9,6 +9,12 @@ spring:
     name: x-business-service
   profiles:
     default: local
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      properties:
+        # Realtime events are best effort; never wait long for a missing broker.
+        max.block.ms: 2000
   data:
     redis:
       host: ${REDIS_HOST:localhost}
